@@ -284,7 +284,8 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
 </div>
 
 <!-- ══ SELECTOR MODO ══ -->
-<div id="s-modo" class="scr" style="overflow-y:auto;padding:28px 20px 20px;">
+<div id="s-modo" class="scr">
+  <div class="body">
   <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
     <button class="btn-logout" onclick="openModal('modal-logout')">Cerrar sesión</button>
   </div>
@@ -294,6 +295,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <p style="font-size:14px;color:var(--tx2);margin-top:5px;">Elige tu modo de trabajo</p>
   </div>
   <div id="modo-opciones"></div>
+  </div>
 </div>
 
 <!-- ══ CAJERO ══ -->
@@ -2663,7 +2665,6 @@ function stopQR() {
     if(btn){ btn.style.display='block'; btn.textContent='📷 Activar cámara y escanear'; }
   } catch(e){}
 }
-function resetQR() { stopQR(); }
 function procesarQR(data) {
   console.log('[QR] Escaneado:', data);
   // Intentar parsear como JSON (QRs generados por la app)
@@ -3058,6 +3059,12 @@ function registrarGasto() {
   toast('✓ Gasto registrado: $'+monto);
   renderGastos();
 }
+function eliminarGasto(id) {
+  const gastos = DBgastos.get().filter(g=>g.id!==id);
+  DBgastos.set(gastos);
+  renderGastos(); renderDrawerGastos(); renderDrawerCorte();
+  toast('Gasto eliminado');
+}
 function renderGastos() {
   const gastos=DBgastos.get();
   const lista=document.getElementById('gastos-lista'); if(!lista) return;
@@ -3067,7 +3074,7 @@ function renderGastos() {
   lista.innerHTML=gastos.map(g=>`
     <div class="or">
       <div class="oi"><div class="on2">${g.concepto}</div><div class="od">${g.creadoPor} · ${g.fecha}</div></div>
-      <div style="text-align:right;"><span style="font-size:16px;font-weight:700;color:var(--re);">$${g.monto}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:16px;font-weight:700;color:var(--re);">$${g.monto}</span><button onclick="eliminarGasto('${g.id}')" style="background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:6px;color:#FF8080;padding:4px 8px;cursor:pointer;font-size:12px;font-family:var(--fn);">✕</button></div>
     </div>`).join('');
 }
 
@@ -3253,7 +3260,14 @@ function toggleUsuarioActivo(key) {
 }
 function eliminarUsuario(key) {
   if(key==='pedro'){toast('No se puede eliminar al administrador principal');return;}
-  if(!confirm('¿Eliminar al usuario '+USERS[key]?.name+'?')) return;
+  // confirm() no funciona en PWA — doble tap
+  const btn = document.getElementById('del-usr-'+key);
+  if(btn && btn.dataset.confirm !== '1') {
+    if(btn){ btn.dataset.confirm='1'; btn.textContent='⚠️ ¿Seguro?'; btn.style.background='rgba(255,82,82,.4)'; }
+    toast('Toca de nuevo para confirmar');
+    setTimeout(()=>{ if(btn&&btn.dataset.confirm==='1'){ btn.dataset.confirm='0'; btn.textContent='🗑'; btn.style.background='rgba(255,82,82,.1)'; } },3000);
+    return;
+  }
   const usuarios = getUsuarios();
   delete usuarios[key];
   saveUsuarios(usuarios);
@@ -3281,7 +3295,7 @@ function renderUsuarios() {
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="abrirFormUsuario('${key}')" style="flex:1;padding:9px;background:rgba(0,212,236,.1);border:1px solid var(--bo2);border-radius:var(--rs);color:var(--ac);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">✏️ Editar</button>
         ${key!=='pedro'?`<button onclick="toggleUsuarioActivo('${key}')" style="flex:1;padding:9px;background:${u.activo!==false?'rgba(255,179,0,.1)':'rgba(0,200,120,.1)'};border:1px solid ${u.activo!==false?'rgba(255,179,0,.25)':'rgba(0,200,120,.25)'};border-radius:var(--rs);color:${u.activo!==false?'var(--am)':'var(--tl)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">${u.activo!==false?'⏸ Desactivar':'▶ Activar'}</button>
-        <button onclick="eliminarUsuario('${key}')" style="padding:9px 12px;background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:var(--rs);color:#FF8080;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">🗑</button>`:'<span style="font-size:12px;color:var(--tx3);padding:9px;">Admin principal protegido</span>'}
+        <button id="del-usr-${key}" onclick="eliminarUsuario('${key}')" style="padding:9px 12px;background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:var(--rs);color:#FF8080;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">🗑</button>`:'<span style="font-size:12px;color:var(--tx3);padding:9px;">Admin principal protegido</span>'}
       </div>
     </div>`).join('');
 }
@@ -3924,7 +3938,7 @@ function borrarDatos() {
   localStorage.removeItem('am_ventas');
   localStorage.removeItem('am_gastos');
   // Limpiar presencia de repartidores
-  ['Adán','Manuel'].forEach(n => localStorage.removeItem('am_online_'+n));
+  Object.keys(USERS).forEach(k => { if(USERS[k].rol==='repartidor') localStorage.removeItem('am_online_'+USERS[k].name); });
   refreshAll();
   closeModal('modal-borrar');
   toast('✓ Datos del día eliminados. App reiniciada.');
