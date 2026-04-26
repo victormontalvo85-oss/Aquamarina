@@ -1310,14 +1310,16 @@ function checkAutoLogin() {
   if (!raw) return false;
   try {
     const session = JSON.parse(raw);
-    const diasDesdeLogin = (Date.now() - session.ts) / (1000 * 60 * 60 * 24);
-    if (diasDesdeLogin > 7) { localStorage.removeItem('am_session'); return false; }
+    const horasDesdeLogin = (Date.now() - session.ts) / (1000 * 60 * 60);
+    if (horasDesdeLogin > 4) { localStorage.removeItem('am_session'); return false; }
     const user = USERS[session.username];
     if (!user || user.activo === false) { localStorage.removeItem('am_session'); return false; }
     CU = { ...user, username: session.username };
-    // Actualizar timestamp de sesión
+    // Renovar sesión
     localStorage.setItem('am_session', JSON.stringify({ username: session.username, ts: Date.now() }));
     if (CU.rol === 'repartidor') PRESENCIA.marcarOnline(CU.name);
+    // Inicializar SH con la pantalla del usuario (no con login)
+    SH = [CU.screen];
     return true;
   } catch(e) { localStorage.removeItem('am_session'); return false; }
 }
@@ -3288,9 +3290,14 @@ setInterval(() => {
 
 // Auto-login: si hay sesión guardada, entrar directo sin pedir contraseña
 (function autoLogin() {
-  archivarDiaAnterior(); // Archivar día anterior si cambió la fecha
-  if (checkAutoLogin()) {
-    setTimeout(() => { entrarApp(); }, 300);
+  archivarDiaAnterior();
+  // Esperar a que el DOM esté completamente listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (checkAutoLogin()) entrarApp();
+    });
+  } else {
+    if (checkAutoLogin()) setTimeout(() => entrarApp(), 100);
   }
 })();
 
