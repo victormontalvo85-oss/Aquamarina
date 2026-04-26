@@ -656,11 +656,31 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
   <div class="body">
     <p class="st" id="corte-fecha">Resumen del día</p>
     <div class="card" id="corte-detalle">
-      <div class="tr"><span style="color:var(--tx2);">Ventas en local</span><span id="corte-local" style="font-weight:700;">$0</span></div>
-      <div class="tr"><span style="color:var(--tx2);">Pedidos a domicilio</span><span id="corte-dom" style="font-weight:700;">$0</span></div>
-      <div class="tr"><span style="color:var(--tx2);">Recolecciones</span><span id="corte-recol" style="font-weight:700;color:var(--ac);">$0</span></div>
-      <div class="tr" id="corte-fiado-row" style="display:none;"><span style="color:var(--am);">Fiados del día</span><span id="corte-fiado" style="font-weight:700;color:var(--am);">$0</span></div>
-      <div class="tr" style="padding-top:12px;"><span style="font-weight:700;font-size:16px;">Total general</span><span class="tf" id="corte-total">$0</span></div>
+      <div class="tr">
+        <div><span style="color:var(--tx2);">🛒 Ventas en local</span><br><span style="font-size:11px;color:var(--tx3);">Cobrado en caja — se queda en caja</span></div>
+        <span id="corte-local" style="font-weight:700;">$0</span>
+      </div>
+      <div class="tr">
+        <div><span style="color:var(--tx2);">🛵 Pedidos a domicilio</span><br><span style="font-size:11px;color:var(--tx3);">El repartidor lleva y cobra todo</span></div>
+        <span id="corte-dom" style="font-weight:700;">$0</span>
+      </div>
+      <div class="tr">
+        <div><span style="color:var(--tx2);">🔄 Recolecciones cobradas</span><br><span style="font-size:11px;color:var(--tx3);">Cobrado por el repartidor</span></div>
+        <span id="corte-recol" style="font-weight:700;color:var(--ac);">$0</span>
+      </div>
+      <!-- Resumen de lo que debe entregar el repartidor -->
+      <div class="tr" style="background:rgba(255,179,0,.08);border-radius:8px;padding:10px 8px;margin:4px 0;">
+        <div><span style="color:var(--am);font-weight:700;">💰 Repartidor debe entregar</span><br><span style="font-size:11px;color:var(--tx3);">Domicilios + recolecciones</span></div>
+        <span id="corte-rep-entrega" style="font-weight:700;color:var(--am);font-size:18px;">$0</span>
+      </div>
+      <div class="tr" id="corte-fiado-row" style="display:none;">
+        <div><span style="color:var(--am);">📋 Fiados pendientes</span><br><span style="font-size:11px;color:var(--tx3);">No cobrados aún</span></div>
+        <span id="corte-fiado" style="font-weight:700;color:var(--am);">$0</span>
+      </div>
+      <div class="tr" style="padding-top:12px;border-top:2px solid var(--bo2);margin-top:4px;">
+        <span style="font-weight:700;font-size:15px;">💵 Total del día</span>
+        <span class="tf" id="corte-total">$0</span>
+      </div>
     </div>
     <p class="st">Desglose por producto</p>
     <div class="card" id="corte-productos">
@@ -758,12 +778,18 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <div style="padding:4px 0;">
         <p class="st" id="d-corte-fecha" style="margin-top:4px;">Resumen del día</p>
         <div class="card" style="padding:6px 14px;margin-bottom:8px;">
-          <div class="tr"><span style="color:var(--tx2);font-size:14px;">Ventas local</span><span id="d-corte-local" style="font-weight:700;">$0</span></div>
-          <div class="tr"><span style="color:var(--tx2);font-size:14px;">Domicilios</span><span id="d-corte-dom" style="font-weight:700;">$0</span></div>
-          <div class="tr"><span style="color:var(--tx2);font-size:14px;">Recolecciones</span><span id="d-corte-recol" style="font-weight:700;color:var(--ac);">$0</span></div>
-          <div class="tr" id="d-corte-fiado-row" style="display:none;"><span style="color:var(--am);font-size:14px;">Fiados</span><span id="d-corte-fiado" style="font-weight:700;color:var(--am);">$0</span></div>
-          <div class="tr" id="d-corte-gasto-row" style="display:none;"><span style="color:var(--re);font-size:14px;">Gastos</span><span id="d-corte-gastos" style="font-weight:700;color:var(--re);">-$0</span></div>
-          <div class="tr" style="padding-top:10px;"><span style="font-weight:700;">Total neto</span><span id="d-corte-total" class="tf">$0</span></div>
+          <div class="tr"><span style="color:var(--tx2);font-size:14px;">🛒 Local</span><span id="d-corte-local" style="font-weight:700;">$0</span></div>
+          <div class="tr"><span style="color:var(--tx2);font-size:14px;">🛵 Domicilios</span><span id="d-corte-dom" style="font-weight:700;">$0</span></div>
+          <div class="tr"><span style="color:var(--tx2);font-size:14px;">🔄 Recolecciones</span><span id="d-corte-recol" style="font-weight:700;color:var(--ac);">$0</span></div>
+          <div class="tr" id="d-corte-fiado-row" style="display:none;"><span style="color:var(--am);font-size:14px;">📋 Fiados</span><span id="d-corte-fiado" style="font-weight:700;color:var(--am);">$0</span></div>
+          <div class="tr" id="d-corte-gasto-row" style="display:none;"><span style="color:var(--re);font-size:14px;">🧾 Gastos</span><span id="d-corte-gastos" style="font-weight:700;color:var(--re);">-$0</span></div>
+          <div style="background:rgba(255,179,0,.1);border-radius:8px;padding:8px 10px;margin:6px 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:var(--am);font-weight:700;">💰 Rep. debe entregar</span>
+              <span id="d-corte-rep" style="font-weight:700;color:var(--am);font-size:16px;">$0</span>
+            </div>
+          </div>
+          <div class="tr" style="padding-top:8px;border-top:1px solid var(--bo);"><span style="font-weight:700;">Total del día</span><span id="d-corte-total" class="tf">$0</span></div>
         </div>
         <div id="d-corte-productos" class="card" style="padding:6px 14px;margin-bottom:8px;"></div>
         <button class="btn btn-ac" style="font-size:14px;padding:12px;" onclick="toast('Generando PDF...')">📄 Exportar PDF</button>
@@ -1611,20 +1637,24 @@ function renderDomingo() {
 function renderCorte() {
   const pedidos = DB.get();
   const ventas = DB.getVentas();
-  const localTotal = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
-  const domTotal = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
-  const recolTotal = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
-  const fiadoTotal = getFiadosPendientes().reduce((s,v)=>s+v.total,0);
-  const general = localTotal + domTotal + recolTotal;
+  const localTotal    = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
+  // TODO el dinero de domicilios lo maneja el repartidor
+  // (cajero le da el dinero pagado en caja para que lleve el control total)
+  const domTotal      = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal    = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const repEntrega    = domTotal + recolTotal; // Repartidor entrega todo esto
+  const fiadoTotal    = getFiadosPendientes().reduce((s,v)=>s+v.total,0);
+  const general       = localTotal + domTotal + recolTotal;
 
   const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-  const cf=document.getElementById('corte-fecha'); if(cf) cf.textContent='Resumen — '+hoy;
-  const cl=document.getElementById('corte-local'); if(cl) cl.textContent='$'+localTotal;
-  const cd=document.getElementById('corte-dom'); if(cd) cd.textContent='$'+domTotal;
-  const cr=document.getElementById('corte-recol'); if(cr) cr.textContent='$'+recolTotal;
-  const ct=document.getElementById('corte-total'); if(ct) ct.textContent='$'+general;
+  const cf=document.getElementById('corte-fecha');       if(cf)  cf.textContent='Resumen — '+hoy;
+  const cl=document.getElementById('corte-local');       if(cl)  cl.textContent='$'+localTotal;
+  const cd=document.getElementById('corte-dom');         if(cd)  cd.textContent='$'+domTotal;
+  const cr=document.getElementById('corte-recol');       if(cr)  cr.textContent='$'+recolTotal;
+  const cre=document.getElementById('corte-rep-entrega');if(cre) cre.textContent='$'+repEntrega;
+  const ct=document.getElementById('corte-total');       if(ct)  ct.textContent='$'+general;
 
-  // Actualizar fila de fiados si existe
+  // Fila de fiados
   const cf2=document.getElementById('corte-fiado-row');
   if(cf2) cf2.style.display = fiadoTotal > 0 ? 'flex' : 'none';
   const cfv=document.getElementById('corte-fiado'); if(cfv) cfv.textContent='$'+fiadoTotal+' (pendiente cobro)';
@@ -1771,7 +1801,8 @@ function pedidoRowHTML(p, ctx) {
       style="margin-top:3px;padding:5px 9px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.25);border-radius:6px;color:var(--am);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fn);">⚠️ Error</button>`;
   } else {
     // Ya tiene solicitud pendiente
-    accionBtn = `<span style="font-size:10px;color:var(--am);margin-top:3px;">⏳ Solicitud enviada</span>`;
+    accionBtn = `<button onclick="cancelarSolicitud('${p.id}');event.stopPropagation();"
+      style="margin-top:3px;padding:5px 9px;background:rgba(255,179,0,.15);border:1px solid rgba(255,179,0,.3);border-radius:6px;color:var(--am);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fn);">✕ Cancelar</button>`;
   }
 
   return `<div class="or" style="${tieneSolicitud?'border-left:3px solid var(--am);padding-left:10px;':''}">
@@ -1793,6 +1824,17 @@ function pedidoRowHTML(p, ctx) {
 }
 
 // ─── SOLICITUDES DE ELIMINACIÓN ──────────────────────────
+function cancelarSolicitud(id) {
+  const pedidos = DB.get();
+  const idx = pedidos.findIndex(p=>p.id===id); if(idx<0) return;
+  delete pedidos[idx].solicitudEliminacion;
+  delete pedidos[idx].solicitudPor;
+  delete pedidos[idx].solicitudTs;
+  DB.set(pedidos);
+  toast('✓ Solicitud cancelada — el pedido sigue activo');
+  refreshAll();
+}
+
 function solicitarEliminacion(id) {
   const pedidos = DB.get();
   const idx = pedidos.findIndex(p=>p.id===id); if(idx<0) return;
@@ -2581,6 +2623,7 @@ function renderDrawerCorte() {
   set('d-corte-dom','$'+domTotal);
   set('d-corte-recol','$'+recolTotal);
   set('d-corte-total','$'+general);
+  set('d-corte-rep','$'+(domTotal+recolTotal));
   const fr=document.getElementById('d-corte-fiado-row');
   if(fr){fr.style.display=fiadoTotal>0?'flex':'none';set('d-corte-fiado','$'+fiadoTotal+' (pendiente)'); }
   const gr=document.getElementById('d-corte-gasto-row');
