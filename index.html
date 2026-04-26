@@ -688,6 +688,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     </div>
     <div id="corte-especiales" style="display:none;"></div>
     <div id="corte-fiados" style="display:none;"></div>
+    <div id="corte-premios" style="display:none;"></div>
     <div id="corte-gastos-sec" style="display:none;"></div>
     <button class="btn btn-ac" onclick="toast('Generando PDF del corte...')">📄 Exportar PDF</button>
     <button class="btn btn-out" onclick="toast('Corte enviado al administrador.')">Enviar para validar</button>
@@ -714,6 +715,51 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <div class="pr2"><span class="prl">Hielo 10kg</span><span style="color:var(--tx2);">$</span><input class="pi" id="pd-hielo" type="number" value="40"/></div>
     </div>
     <button class="btn btn-ac" onclick="guardarPrecios()">Guardar y sincronizar precios</button>
+
+    <!-- ── SISTEMA DE LEALTAD ── -->
+    <p class="st">⭐ Sistema de lealtad</p>
+    <div class="card2" style="padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">Activar sistema de lealtad</div>
+          <div style="font-size:12px;color:var(--tx2);margin-top:3px;">Al llegar a 10 compras → garrafón gratis</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="lealtad-activo" onchange="guardarConfigLealtad()"/><span class="sls"></span></label>
+      </div>
+      <div id="lealtad-config" style="display:none;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:14px;color:var(--tx2);white-space:nowrap;">Compras para premio:</span>
+          <input class="pi" id="lealtad-meta" type="number" value="10" min="1" max="50" style="width:70px;"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:14px;color:var(--tx2);white-space:nowrap;">Premio:</span>
+          <select class="inp" id="lealtad-premio" style="margin-bottom:0;font-size:14px;">
+            <option value="garrafon20">Garrafón 20L gratis</option>
+            <option value="garrafon10">Garrafón 10L gratis</option>
+            <option value="garrafon5">Garrafón 5L gratis</option>
+            <option value="descuento">Descuento 50%</option>
+          </select>
+        </div>
+        <button class="btn btn-tl" style="padding:11px;font-size:14px;" onclick="guardarConfigLealtad()">✓ Guardar configuración</button>
+      </div>
+    </div>
+
+    <!-- Ver clientes con puntos -->
+    <button class="btn btn-out" style="font-size:14px;padding:12px;" onclick="go('s-lealtad')">⭐ Ver puntos de clientes</button>
+  </div>
+</div>
+
+<!-- ══ LEALTAD ══ -->
+<div id="s-lealtad" class="scr">
+  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">⭐ Sistema de lealtad</span></div>
+  <div class="body">
+    <div class="alt alt-b" style="font-size:13px;margin-bottom:14px;">
+      ⭐ Clientes acumulan puntos por cada compra. Al llegar a la meta reciben su premio.
+    </div>
+    <p class="st">Clientes con puntos</p>
+    <div id="lealtad-lista">
+      <div class="empty"><div class="ei">⭐</div><p>Sin clientes con puntos aún.</p></div>
+    </div>
   </div>
 </div>
 
@@ -1287,12 +1333,13 @@ function go(id, param) {
   if (id === 's-corte') renderCorte();
   if (id === 's-cobrar-caja') renderCajaPendientes();
   if (id === 's-cobrado') renderCobrado();
-  if (id === 's-precios') updatePrecios();
+  if (id === 's-precios') { updatePrecios(); setTimeout(initLealtadConfig, 50); }
   if (id === 's-nuevo-pedido') setTimeout(initNuevoPedido, 50);
   if (id === 's-clientes') setTimeout(renderClientes, 50);
   if (id === 's-reportes') setTimeout(initReportes, 50);
   if (id === 's-usuarios') setTimeout(renderUsuarios, 50);
   if (id === 's-limpiar')  setTimeout(renderLimpiar, 50);
+  if (id === 's-lealtad')  setTimeout(renderLealtad, 50);
   if (id === 's-qr') { const r=document.getElementById('qr-resultado');if(r)r.style.display='none'; }
   if (id !== 's-qr') stopQR();
 }
@@ -1706,8 +1753,18 @@ function renderCorte() {
     }
   }
 
-  // Gastos del día (#9)
-  const gastos = DBgastos ? DBgastos.get() : [];
+  // Premios de lealtad aplicados hoy
+  const premios = DB.getVentas().filter(v=>v.tipo_venta==='premio_lealtad'&&v.timestamp&&v.timestamp>new Date().setHours(0,0,0,0));
+  const cp5 = document.getElementById('corte-premios');
+  if(cp5){
+    if(premios.length===0){ cp5.style.display='none'; }
+    else {
+      cp5.style.display='block';
+      cp5.innerHTML=`<p class="st">🎁 Premios de lealtad aplicados hoy (${premios.length})</p><div class="card" style="padding:4px 16px;">`
+        +premios.map(p=>`<div class="or" style="cursor:default;"><div class="oi"><div class="on2" style="font-size:14px;">${p.cliente}</div><div class="od">${p.nota} · ${p.fecha}</div></div><span class="badge b-tl">Gratis</span></div>`).join('')
+        +'</div>';
+    }
+  }
   const totalGastos = gastos.reduce((s,g)=>s+g.monto,0);
   const gs = document.getElementById('corte-gastos-sec');
   if (gs) {
@@ -2245,6 +2302,8 @@ function confirmarCobro() {
   }
 
   cambiarEstadoPedido(pedidoSelCobrar, 'entregado');
+  // ⭐ Registrar compra para sistema de lealtad
+  registrarCompraLealtad(p.cliente, p.cantidades || p.cantidadesRecogidas, p.total);
   // #11: marcar como pagado al repartidor
   const pedidosUpd = DB.get();
   const idxUpd = pedidosUpd.findIndex(x=>x.id===pedidoSelCobrar);
@@ -2360,6 +2419,8 @@ function registrarVenta() {
   espActivo=false; const s=document.getElementById('esp-sec'); if(s)s.style.display='none';
   calcVenta();
   toast('✓ Venta registrada: $'+total+(espActivo?' (precio especial)':''));
+  // ⭐ Lealtad — ventas en local también cuentan (si hay cliente identificable)
+  // Las ventas en local no siempre tienen cliente, solo si viene de QR o dirección
   setTimeout(()=>{ gb(); refreshAll(); }, 1000);
 }
 
@@ -3452,6 +3513,185 @@ function initReportes() {
   const ini = document.getElementById('rep-fecha-ini'); if(ini) ini.value = hace7;
   const fin = document.getElementById('rep-fecha-fin'); if(fin) fin.value = hoy;
   selPeriodo('dia');
+}
+
+// ─── SISTEMA DE LEALTAD ────────────────────────────────────
+const DBlealtad = {
+  getConfig() {
+    return JSON.parse(localStorage.getItem('am_lealtad_config') || JSON.stringify({
+      activo: false, meta: 10, premio: 'garrafon20'
+    }));
+  },
+  setConfig(c) { localStorage.setItem('am_lealtad_config', JSON.stringify(c)); }
+};
+
+const PREMIO_LABELS = {
+  garrafon20: 'Garrafón 20L gratis',
+  garrafon10: 'Garrafón 10L gratis',
+  garrafon5:  'Garrafón 5L gratis',
+  descuento:  'Descuento 50%'
+};
+
+function guardarConfigLealtad() {
+  const activo = document.getElementById('lealtad-activo')?.checked || false;
+  const meta   = parseInt(document.getElementById('lealtad-meta')?.value || 10);
+  const premio = document.getElementById('lealtad-premio')?.value || 'garrafon20';
+  DBlealtad.setConfig({ activo, meta, premio });
+  const sec = document.getElementById('lealtad-config');
+  if(sec) sec.style.display = activo ? 'block' : 'none';
+  toast(activo ? '✓ Sistema de lealtad activado — meta: '+meta+' compras' : 'Sistema de lealtad desactivado');
+}
+
+function initLealtadConfig() {
+  const cfg = DBlealtad.getConfig();
+  const chk = document.getElementById('lealtad-activo'); if(chk) chk.checked = cfg.activo;
+  const meta = document.getElementById('lealtad-meta');  if(meta) meta.value = cfg.meta;
+  const prm  = document.getElementById('lealtad-premio');if(prm)  prm.value = cfg.premio;
+  const sec  = document.getElementById('lealtad-config');if(sec)  sec.style.display = cfg.activo?'block':'none';
+}
+
+// Registrar compra en historial del cliente y verificar premio
+function registrarCompraLealtad(clienteStr, cantidades, total) {
+  const cfg = DBlealtad.getConfig();
+  if(!cfg.activo || !clienteStr) return;
+
+  const clientes = DBcli.get();
+  const q = clienteStr.toLowerCase();
+  let idx = clientes.findIndex(c =>
+    q.includes(c.nombre.toLowerCase()) || q.includes(c.dir.toLowerCase()) ||
+    c.nombre.toLowerCase().includes(q) || c.dir.toLowerCase().includes(q)
+  );
+
+  if(idx < 0) return; // Cliente no encontrado en BD
+
+  if(!clientes[idx].historialCompras) clientes[idx].historialCompras = [];
+  if(!clientes[idx].compras) clientes[idx].compras = 0;
+  if(!clientes[idx].premiosGanados) clientes[idx].premiosGanados = 0;
+
+  clientes[idx].compras++;
+  clientes[idx].historialCompras.push({
+    fecha: new Date().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}),
+    hora:  new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
+    cantidades, total, timestamp: Date.now()
+  });
+  clientes[idx].ultimaCompra = Date.now();
+
+  // ¿Llegó a la meta?
+  const comprasHastaAhora = clientes[idx].compras;
+  const premiosCobrados   = clientes[idx].premiosGanados || 0;
+  const ciclosCompletos   = Math.floor(comprasHastaAhora / cfg.meta);
+
+  if(ciclosCompletos > premiosCobrados) {
+    // ¡Premio ganado!
+    clientes[idx].premiosPendientes = (clientes[idx].premiosPendientes || 0) + 1;
+    DBcli.set(clientes);
+    // Mostrar alerta visual
+    mostrarAlertaLealtad(clientes[idx].nombre, cfg);
+  } else {
+    DBcli.set(clientes);
+  }
+}
+
+function mostrarAlertaLealtad(nombre, cfg) {
+  // Crear modal de felicitación
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;animation:fi .2s ease;';
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border:2px solid gold;border-radius:var(--r);padding:28px 24px;text-align:center;max-width:320px;width:100%;">
+      <div style="font-size:56px;margin-bottom:12px;">🎉</div>
+      <div style="font-size:20px;font-weight:800;color:gold;margin-bottom:8px;">¡PREMIO GANADO!</div>
+      <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:6px;">${nombre}</div>
+      <div style="font-size:14px;color:var(--tx2);margin-bottom:20px;">Completó <strong style="color:gold;">${cfg.meta} compras</strong><br>Le corresponde:<br><strong style="color:var(--tl);font-size:16px;">${PREMIO_LABELS[cfg.premio]||cfg.premio}</strong></div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="width:100%;padding:14px;background:gold;border:none;border-radius:var(--rs);font-size:16px;font-weight:800;cursor:pointer;font-family:var(--fn);color:#1a1000;">✓ Entendido</button>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
+}
+
+function aplicarPremioLealtad(clienteId) {
+  const clientes = DBcli.get();
+  const idx = clientes.findIndex(c=>c.id===clienteId); if(idx<0) return;
+  if(!clientes[idx].premiosPendientes || clientes[idx].premiosPendientes <= 0) {
+    toast('Este cliente no tiene premios pendientes'); return;
+  }
+  clientes[idx].premiosPendientes--;
+  clientes[idx].premiosGanados = (clientes[idx].premiosGanados||0) + 1;
+  DBcli.set(clientes);
+  toast('✓ Premio aplicado — garrafón gratis entregado a '+clientes[idx].nombre);
+  renderLealtad();
+  // Registrar en ventas como premio (para el corte)
+  const ventas = DB.getVentas();
+  const cfg = DBlealtad.getConfig();
+  ventas.push({
+    id: genId(),
+    tipo_venta: 'premio_lealtad',
+    cliente: clientes[idx].nombre,
+    premio: cfg.premio,
+    total: 0, // gratis
+    nota: PREMIO_LABELS[cfg.premio||'garrafon20'],
+    fecha: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
+    timestamp: Date.now()
+  });
+  DB.setVentas(ventas);
+}
+
+function renderLealtad() {
+  const lista = document.getElementById('lealtad-lista'); if(!lista) return;
+  const cfg = DBlealtad.getConfig();
+  const clientes = DBcli.get().filter(c => (c.compras||0) > 0);
+  if(clientes.length === 0) {
+    lista.innerHTML = '<div class="empty"><div class="ei">⭐</div><p>Sin clientes con compras registradas.</p></div>';
+    return;
+  }
+  // Ordenar por más compras
+  clientes.sort((a,b) => (b.compras||0) - (a.compras||0));
+  lista.innerHTML = clientes.map(c => {
+    const compras    = c.compras || 0;
+    const meta       = cfg.meta || 10;
+    const progreso   = compras % meta;
+    const pct        = Math.min(100, Math.round(progreso / meta * 100));
+    const pendientes = c.premiosPendientes || 0;
+    const historial  = (c.historialCompras||[]).slice(-5).reverse();
+    return `<div style="background:var(--card2);border:1px solid ${pendientes>0?'gold':'var(--bo)'};border-radius:var(--r);padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">${c.nombre}</div>
+          <div style="font-size:12px;color:var(--tx2);margin-top:2px;">📍 ${c.dir}</div>
+          <div style="font-size:13px;margin-top:4px;">
+            <span style="color:var(--ac);font-weight:700;">${compras}</span>
+            <span style="color:var(--tx2);"> compras totales</span>
+          </div>
+        </div>
+        ${pendientes>0?`<div style="text-align:center;background:rgba(255,215,0,.15);border:1px solid gold;border-radius:var(--rs);padding:8px 12px;">
+          <div style="font-size:20px;">🎁</div>
+          <div style="font-size:11px;font-weight:700;color:gold;">${pendientes} premio${pendientes>1?'s':''}</div>
+        </div>`:''}
+      </div>
+      <!-- Barra de progreso -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:12px;color:var(--tx2);">Progreso al premio</span>
+          <span style="font-size:12px;font-weight:700;color:var(--ac);">${progreso}/${meta}</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;height:10px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${pct>=100?'gold':'var(--ac)'};border-radius:10px;transition:width .4s;"></div>
+        </div>
+      </div>
+      <!-- Últimas compras -->
+      ${historial.length>0?`<details style="margin-bottom:${pendientes>0?'10px':'0'};">
+        <summary style="font-size:12px;color:var(--tx3);cursor:pointer;padding:4px 0;">Ver últimas ${historial.length} compras ▼</summary>
+        <div style="margin-top:6px;">
+          ${historial.map(h=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bo);font-size:12px;">
+            <span style="color:var(--tx2);">${h.fecha} ${h.hora}</span>
+            <span style="font-weight:600;color:var(--tl);">$${h.total}</span>
+          </div>`).join('')}
+        </div>
+      </details>`:''}
+      ${pendientes>0?`<button onclick="aplicarPremioLealtad('${c.id}')"
+        style="width:100%;padding:11px;background:rgba(255,215,0,.2);border:1px solid gold;border-radius:var(--rs);color:gold;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+        🎁 Aplicar premio — ${PREMIO_LABELS[cfg.premio]}
+      </button>`:''}
+    </div>`;
+  }).join('');
 }
 
 // ─── LIMPIAR REGISTROS (solo admin) ──────────────────────
