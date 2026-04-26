@@ -305,7 +305,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <button onclick="go('s-qr','cajero')" style="flex:1;padding:14px;background:rgba(0,212,236,.1);border:1.5px solid var(--bo2);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--ac);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span style="font-size:22px;">📷</span> Escanear QR
       </button>
-      <button onclick="go('s-clientes');renderClientes()" style="flex:1;padding:14px;background:rgba(0,212,236,.1);border:1.5px solid var(--bo2);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--ac);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <button onclick="go('s-clientes')" style="flex:1;padding:14px;background:rgba(0,212,236,.1);border:1.5px solid var(--bo2);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--ac);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span style="font-size:22px;">👥</span> Domicilios
       </button>
     </div>
@@ -348,7 +348,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <button onclick="go('s-qr','repartidor')" style="flex:1;padding:14px;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.3);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--am);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span style="font-size:22px;">📷</span> Escanear QR
       </button>
-      <button onclick="go('s-clientes');renderClientes()" style="flex:1;padding:14px;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.3);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--am);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <button onclick="go('s-clientes')" style="flex:1;padding:14px;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.3);border-radius:var(--r);cursor:pointer;font-family:var(--fn);color:var(--am);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
         <span style="font-size:22px;">👥</span> Domicilios
       </button>
     </div>
@@ -477,7 +477,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <input class="inp" id="np-cliente" placeholder="Nombre o dirección del cliente" oninput="autocompleteCliente()" autocomplete="off" style="margin-bottom:0;"/>
       <div id="np-sugerencias" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1.5px solid var(--bo2);border-radius:var(--rs);z-index:50;max-height:180px;overflow-y:auto;"></div>
     </div>
-    <button style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0 12px;font-family:var(--fn);" onclick="go('s-clientes');renderClientes()">+ Guardar/ver clientes ›</button>
+    <button style="font-size:12px;color:var(--ac);background:none;border:none;cursor:pointer;padding:4px 0 12px;font-family:var(--fn);" onclick="go('s-clientes')">+ Guardar/ver clientes ›</button>
     <div id="sec-entrega">
       <p class="st">Productos a entregar</p>
       <div class="card" style="padding:6px 16px;">
@@ -992,7 +992,20 @@ let fbConectado = false;
       if (e.code === 'failed-precondition') console.log('Persistencia: múltiples pestañas');
       else if (e.code === 'unimplemented') console.log('Persistencia no soportada en este navegador');
     });
-    fbConectado = true;
+    // Cargar historial desde Firebase
+  try {
+    const snapH = await fbdb.collection(COL).doc('historial').get();
+    if (snapH.exists && snapH.data()?.data) {
+      const remoteH = snapH.data().data;
+      const localH  = JSON.parse(localStorage.getItem('am_historial')||'[]');
+      // Fusionar: tomar el más completo
+      if (remoteH.length >= localH.length) {
+        localStorage.setItem('am_historial', JSON.stringify(remoteH));
+      }
+    }
+  } catch(e) { console.warn('Historial Firebase:', e); }
+
+  fbConectado = true;
     console.log('🔥 Firebase conectado');
     await cargarDatosFirebase();
     setupListenersFirebase();
@@ -1184,6 +1197,8 @@ function go(id, param) {
   document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
   const s = document.getElementById(id);
   if (s) { s.classList.add('on'); SH.push(id); s.scrollTop = 0; }
+  // Añadir entrada al historial del navegador para que el botón atrás de Android funcione
+  if (history.pushState) history.pushState({ screen: id }, '', location.href.split('?')[0]);
   if (id === 's-corte') renderCorte();
   if (id === 's-cobrar-caja') renderCajaPendientes();
   if (id === 's-cobrado') renderCobrado();
@@ -1197,12 +1212,23 @@ function go(id, param) {
 }
 function gb() {
   SH.pop();
-  const p = SH[SH.length-1] || 's-login';
+  // Nunca regresar al login si el usuario sigue logueado
+  const pantallasValidas = CU ? SH.filter(s => s !== 's-login') : SH;
+  const p = pantallasValidas[pantallasValidas.length - 1] || (CU ? (CU.screen || 's-cajero') : 's-login');
   document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
   const s = document.getElementById(p);
   if (s) s.classList.add('on');
   refreshAll();
 }
+// Interceptar botón ATRÁS de Android en modo PWA
+window.addEventListener('popstate', function(e) {
+  if (SH.length > 1) {
+    gb();
+  } else if (CU) {
+    // Estamos en la pantalla principal — no salir de la app
+    history.pushState({ screen: 'root' }, '', location.href.split('?')[0]);
+  }
+});
 
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -1243,7 +1269,7 @@ const PRESENCIA = {
 };
 
 function doLogin() {
-  USERS = getUsuarios(); // Recargar usuarios por si admin hizo cambios
+  USERS = getUsuarios();
   const u = document.getElementById('lu').value.trim().toLowerCase();
   const p = document.getElementById('lp').value;
   if (!u) { toast('Escribe tu usuario'); return; }
@@ -1252,7 +1278,8 @@ function doLogin() {
   if (user && user.pass === p && user.activo !== false) {
     CU = { ...user, username: u };
     if (CU.rol === 'repartidor') PRESENCIA.marcarOnline(CU.name);
-    // Sin PIN — ir directo a la pantalla correspondiente
+    // Guardar sesión para auto-login
+    localStorage.setItem('am_session', JSON.stringify({ username: u, ts: Date.now() }));
     entrarApp();
   } else if (user && user.activo === false) {
     toast('Usuario inactivo — contacta al administrador');
@@ -1270,9 +1297,29 @@ function entrarApp() {
 function doLogout() {
   closeModal('modal-logout');
   if (CU && CU.rol === 'repartidor') PRESENCIA.marcarOffline(CU.name);
+  // Borrar sesión guardada
+  localStorage.removeItem('am_session');
   CU=null; PV=''; SH=['s-login'];
   document.getElementById('lu').value=''; document.getElementById('lp').value='';
   go('s-login'); toast('Sesión cerrada');
+}
+// Auto-login al abrir la app si hay sesión activa (máx 7 días)
+function checkAutoLogin() {
+  USERS = getUsuarios();
+  const raw = localStorage.getItem('am_session');
+  if (!raw) return false;
+  try {
+    const session = JSON.parse(raw);
+    const diasDesdeLogin = (Date.now() - session.ts) / (1000 * 60 * 60 * 24);
+    if (diasDesdeLogin > 7) { localStorage.removeItem('am_session'); return false; }
+    const user = USERS[session.username];
+    if (!user || user.activo === false) { localStorage.removeItem('am_session'); return false; }
+    CU = { ...user, username: session.username };
+    // Actualizar timestamp de sesión
+    localStorage.setItem('am_session', JSON.stringify({ username: session.username, ts: Date.now() }));
+    if (CU.rol === 'repartidor') PRESENCIA.marcarOnline(CU.name);
+    return true;
+  } catch(e) { localStorage.removeItem('am_session'); return false; }
 }
 
 // ─── SELECTOR DE MODO ─────────────────────────────────────
@@ -2464,38 +2511,61 @@ function cerrarFormCliente() {
 function guardarCliente() {
   const nombre = document.getElementById('cli-nombre')?.value.trim();
   const dir    = document.getElementById('cli-dir')?.value.trim();
-  const ref    = document.getElementById('cli-ref')?.value.trim();
-  const tel    = document.getElementById('cli-tel')?.value.trim();
-  const notas  = document.getElementById('cli-notas')?.value.trim();
-  const editId = document.getElementById('cli-edit-id')?.value;
+  const ref    = document.getElementById('cli-ref')?.value.trim() || '';
+  const tel    = document.getElementById('cli-tel')?.value.trim() || '';
+  const notas  = document.getElementById('cli-notas')?.value.trim() || '';
+  const editId = document.getElementById('cli-edit-id')?.value || '';
 
   if(!nombre){ toast('El nombre es obligatorio'); return; }
   if(!dir){ toast('La dirección es obligatoria'); return; }
 
-  const clientes = DBcli.get();
+  let clientes = DBcli.get();
   if (editId) {
-    // Actualizar existente
     const idx = clientes.findIndex(c=>c.id===editId);
-    if(idx>=0) clientes[idx] = { ...clientes[idx], nombre, dir, ref, tel, notas, updatedAt:Date.now() };
-    toast('✓ Cliente actualizado');
+    if(idx>=0) {
+      clientes[idx] = { ...clientes[idx], nombre, dir, ref, tel, notas, updatedAt:Date.now() };
+      toast('✓ Cliente actualizado');
+    }
   } else {
-    // Verificar duplicado por dirección exacta
-    const existe = clientes.find(c=>c.dir.toLowerCase()===dir.toLowerCase());
-    if(existe){ toast('Ya existe un cliente con esa dirección'); return; }
-    clientes.unshift({ id:genId(), nombre, dir, ref, tel, notas, pedidos:0, createdAt:Date.now() });
-    toast('✓ Cliente guardado');
+    // Solo bloquear duplicados exactos por nombre+dirección
+    const existe = clientes.find(c =>
+      c.nombre.toLowerCase()===nombre.toLowerCase() &&
+      c.dir.toLowerCase()===dir.toLowerCase()
+    );
+    if(existe){
+      toast('Este cliente ya está guardado');
+      cerrarFormCliente();
+      return;
+    }
+    clientes.unshift({ id:genId(), nombre, dir, ref, tel, notas, createdAt:Date.now() });
+    toast('✓ Domicilio guardado');
   }
-  DBcli.set(clientes);
+  try {
+    DBcli.set(clientes);
+  } catch(e) {
+    // Fallback: guardar solo en localStorage si Firebase falla
+    localStorage.setItem('am_clientes', JSON.stringify(clientes));
+    toast('✓ Guardado localmente');
+  }
   cerrarFormCliente();
   renderClientes();
 }
 
 function eliminarCliente(id) {
-  if(!confirm('¿Eliminar este cliente?')) return;
-  const clientes = DBcli.get().filter(c=>c.id!==id);
-  DBcli.set(clientes);
-  renderClientes();
-  toast('Cliente eliminado');
+  // confirm() no funciona en PWA Android — usar toast con doble tap
+  const btn = document.getElementById('del-cli-'+id);
+  if(btn && btn.dataset.confirm === '1') {
+    const clientes = DBcli.get().filter(c=>c.id!==id);
+    DBcli.set(clientes);
+    renderClientes();
+    toast('Cliente eliminado');
+  } else {
+    if(btn) { btn.dataset.confirm = '1'; btn.textContent = '⚠️ Confirmar'; btn.style.background = 'rgba(255,82,82,.3)'; }
+    toast('Toca de nuevo para confirmar');
+    setTimeout(() => {
+      if(btn) { btn.dataset.confirm = '0'; btn.textContent = '🗑'; btn.style.background = 'rgba(255,82,82,.1)'; }
+    }, 3000);
+  }
 }
 
 function renderClientes() {
@@ -2525,7 +2595,7 @@ function renderClientes() {
         <div style="display:flex;flex-direction:column;gap:5px;margin-left:8px;">
           <button onclick="abrirFormCliente('${c.id}')" style="background:rgba(0,212,236,.1);border:1px solid var(--bo2);border-radius:7px;color:var(--ac);padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">✏️ Editar</button>
           <button onclick="crearPedidoDesdeCliente('${c.id}')" style="background:rgba(0,200,120,.1);border:1px solid rgba(0,200,120,.25);border-radius:7px;color:var(--tl);padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">➕ Pedido</button>
-          <button onclick="eliminarCliente('${c.id}')" style="background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:7px;color:#FF8080;padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">🗑 Borrar</button>
+          <button id="del-cli-${c.id}" onclick="eliminarCliente('${c.id}')" style="background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:7px;color:#FF8080;padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">🗑</button>
         </div>
       </div>
     </div>`).join('');
@@ -2853,7 +2923,60 @@ function renderUsuarios() {
     </div>`).join('');
 }
 
-// ─── MOTOR DE REPORTES ───────────────────────────────────────
+// ─── HISTORIAL POR DÍA ─────────────────────────────────────
+// Cada día al cargar la app, archiva los datos del día anterior
+function archivarDiaAnterior() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const ultimoDia = localStorage.getItem('am_ultimo_dia');
+  if (ultimoDia && ultimoDia !== hoy) {
+    // Es un día nuevo — archivar los datos del día anterior
+    const pedidos = DB.get();
+    const ventas  = DB.getVentas();
+    const gastos  = DBgastos ? DBgastos.get() : [];
+    if (pedidos.length > 0 || ventas.length > 0) {
+      const archivo = JSON.parse(localStorage.getItem('am_historial') || '[]');
+      archivo.push({ fecha: ultimoDia, pedidos, ventas, gastos, archivedAt: Date.now() });
+      // Guardar máximo 90 días de historial
+      const recientes = archivo.slice(-90);
+      localStorage.setItem('am_historial', JSON.stringify(recientes));
+      // Sincronizar historial con Firebase
+      if (fbdb) fbdb.collection(COL).doc('historial').set({ data: recientes, ts: Date.now() }).catch(()=>{});
+    }
+    // Limpiar datos del día para el nuevo día
+    localStorage.setItem('am_pedidos', '[]');
+    localStorage.setItem('am_ventas', '[]');
+    localStorage.setItem('am_gastos', '[]');
+  }
+  localStorage.setItem('am_ultimo_dia', hoy);
+}
+
+// Obtener todos los datos (hoy + historial) para un rango de fechas
+function getDatosRango(ini, fin) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const pedidosHoy = DB.get();
+  const ventasHoy  = DB.getVentas();
+  const gastosHoy  = DBgastos ? DBgastos.get() : [];
+
+  // Verificar si el rango incluye hoy
+  const incluyeHoy = ini.getTime() <= new Date(hoy+'T23:59:59').getTime() &&
+                     fin.getTime() >= new Date(hoy+'T00:00:00').getTime();
+
+  let pedidosTodos = incluyeHoy ? [...pedidosHoy] : [];
+  let ventasTodas  = incluyeHoy ? [...ventasHoy]  : [];
+  let gastosTodos  = incluyeHoy ? [...gastosHoy]  : [];
+
+  // Agregar datos del historial en el rango
+  const historial = JSON.parse(localStorage.getItem('am_historial') || '[]');
+  for (const dia of historial) {
+    const fechaDia = new Date(dia.fecha + 'T12:00:00');
+    if (fechaDia >= ini && fechaDia <= fin) {
+      pedidosTodos = [...pedidosTodos, ...(dia.pedidos||[])];
+      ventasTodas  = [...ventasTodas,  ...(dia.ventas||[])];
+      gastosTodos  = [...gastosTodos,  ...(dia.gastos||[])];
+    }
+  }
+  return { pedidos: pedidosTodos, ventas: ventasTodas, gastos: gastosTodos };
+}
 let periodoActual = 'dia';
 
 function selPeriodo(periodo) {
@@ -2895,23 +3018,21 @@ function getFechasRango(periodo) {
 
 function generarReporte(periodo) {
   const { ini, fin } = getFechasRango(periodo);
-  const pedidos = DB.get();
-  const ventas = DB.getVentas();
-  const gastos = DBgastos ? DBgastos.get() : [];
+  // Obtener datos del rango (hoy + historial de días pasados)
+  const { pedidos, ventas, gastos } = getDatosRango(ini, fin);
 
-  // Filtrar por rango de fechas (usando timestamp)
+  // Filtrar por timestamp dentro del rango
   const pedFiltro = pedidos.filter(p => {
-    const t = p.timestamp || 0;
-    return t >= ini.getTime() && t <= fin.getTime();
+    if (!p.timestamp) return true; // sin timestamp = datos de hoy
+    return p.timestamp >= ini.getTime() && p.timestamp <= fin.getTime();
   });
   const venFiltro = ventas.filter(v => {
-    // Ventas locales y normales usan timestamp si existe, sino incluir todo de hoy
-    if(v.timestamp) return v.timestamp >= ini.getTime() && v.timestamp <= fin.getTime();
-    return true; // datos sin timestamp (hoy) siempre incluir si período = dia
+    if (!v.timestamp) return true;
+    return v.timestamp >= ini.getTime() && v.timestamp <= fin.getTime();
   });
   const gasFiltro = gastos.filter(g => {
-    if(g.timestamp) return g.timestamp >= ini.getTime() && g.timestamp <= fin.getTime();
-    return true;
+    if (!g.timestamp) return true;
+    return g.timestamp >= ini.getTime() && g.timestamp <= fin.getTime();
   });
 
   // Calcular totales
@@ -3156,13 +3277,20 @@ setInterval(() => {
 }, 2000);
 
 // ─── INIT ─────────────────────────────────────────────────
-// Limpiar precios viejos en caché para que entren los precios reales
+// Limpiar precios viejos en caché
 (function resetPreciosViejos() {
   const lp = DB.getPrecios('local');
-  // Si los precios en caché son los anteriores (80,50,35,65), reemplazar con los nuevos
   if (!lp.g20 || lp.g20 === 80 || lp.g20 === 85) {
     DB.setPrecios('local', {...LP});
     DB.setPrecios('domicilio', {...DP});
+  }
+})();
+
+// Auto-login: si hay sesión guardada, entrar directo sin pedir contraseña
+(function autoLogin() {
+  archivarDiaAnterior(); // Archivar día anterior si cambió la fecha
+  if (checkAutoLogin()) {
+    setTimeout(() => { entrarApp(); }, 300);
   }
 })();
 
