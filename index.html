@@ -397,6 +397,14 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       <div class="sc"><div class="sl">Ventas hoy</div><div class="sv" style="color:var(--tl);" id="admin-total">$0</div></div>
       <div class="sc"><div class="sl">Pedidos</div><div class="sv" style="color:var(--ac);" id="admin-pedidos">0</div></div>
     </div>
+    <!-- Solicitudes de eliminación pendientes -->
+    <div id="admin-solicitudes-sec" style="display:none;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:700;color:var(--re);">🚨 Solicitudes de eliminación</span>
+        <span id="admin-solicitudes-badge" class="badge b-re" style="font-size:11px;"></span>
+      </div>
+      <div id="admin-solicitudes-lista"></div>
+    </div>
     <p class="st">Todos los pedidos</p>
     <div id="admin-pedidos-lista" class="card" style="padding:4px 16px;">
       <div class="empty"><div class="ei">📊</div><p>Aún no hay actividad hoy.</p></div>
@@ -408,6 +416,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <button class="tab" onclick="go('s-corte')"><span class="ti">🗂</span>Corte</button>
     <button class="tab" onclick="go('s-usuarios');renderUsuarios()"><span class="ti">👥</span>Usuarios</button>
     <button class="tab" onclick="go('s-reportes')"><span class="ti">📊</span>Reportes</button>
+    <button class="tab" onclick="go('s-limpiar');renderLimpiar()"><span class="ti">🗑</span>Limpiar</button>
   </div>
 </div>
 
@@ -916,6 +925,40 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
 </div>
 
 </div>
+<!-- ══ LIMPIAR REGISTROS ══ -->
+<div id="s-limpiar" class="scr">
+  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">🗑 Limpiar registros</span></div>
+  <div class="body">
+    <div style="background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:var(--rs);padding:12px 14px;margin-bottom:14px;font-size:13px;color:#FF8080;">
+      ⚠️ Esta acción es permanente. Solo para administrador.
+    </div>
+    <p class="st">Día actual</p>
+    <div class="card2" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:15px;font-weight:700;" id="limpiar-hoy-fecha">Hoy</div>
+          <div id="limpiar-hoy-info" style="font-size:12px;color:var(--tx2);margin-top:3px;">Cargando...</div>
+        </div>
+        <button id="btn-limpiar-hoy" onclick="confirmarLimpiar('hoy')"
+          style="padding:10px 16px;background:rgba(255,82,82,.15);border:1px solid rgba(255,82,82,.3);border-radius:var(--rs);color:#FF8080;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+          🗑 Borrar hoy
+        </button>
+      </div>
+    </div>
+    <p class="st">Historial por día</p>
+    <div id="limpiar-historial">
+      <div class="empty"><div class="ei">📂</div><p>Sin historial guardado.</p></div>
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--bo);">
+      <button onclick="confirmarLimpiar('todo')"
+        style="width:100%;padding:14px;background:rgba(255,82,82,.2);border:2px solid rgba(255,82,82,.4);border-radius:var(--rs);color:#FF8080;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+        💥 Borrar TODO (hoy + historial completo)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPORTES ══ -->
 <div id="s-reportes" class="scr">
   <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">📊 Reportes</span></div>
   <div class="body">
@@ -1223,6 +1266,7 @@ function go(id, param) {
   if (id === 's-clientes') setTimeout(renderClientes, 50);
   if (id === 's-reportes') setTimeout(initReportes, 50);
   if (id === 's-usuarios') setTimeout(renderUsuarios, 50);
+  if (id === 's-limpiar')  setTimeout(renderLimpiar, 50);
   if (id === 's-qr') { const r=document.getElementById('qr-resultado');if(r)r.style.display='none'; }
   if (id !== 's-qr') stopQR();
 }
@@ -1544,6 +1588,8 @@ function renderAdmin() {
   const total = ventas.reduce((s,v)=>s+v.total,0) + pedidos.filter(p=>p.estado==='entregado').reduce((s,p)=>s+p.total,0);
   const ts=document.getElementById('admin-total'); if(ts) ts.textContent='$'+total;
   const ps=document.getElementById('admin-pedidos'); if(ps) ps.textContent=pedidos.length;
+  // Mostrar solicitudes de eliminación pendientes
+  renderSolicitudes();
   const lista=document.getElementById('admin-pedidos-lista');
   if(!lista) return;
   if(pedidos.length===0){lista.innerHTML='<div class="empty"><div class="ei">📊</div><p>Aún no hay actividad hoy.</p></div>';return;}
@@ -1710,25 +1756,122 @@ function pedidoRowHTML(p, ctx) {
   const reps = PRESENCIA.getRepartidores();
   const repOptions = reps.map(r =>
     `<option value="${r.name}" ${p.repartidor===r.name?'selected':''}>${r.name} ${r.online?'🟢':'⚫'}</option>`
-  ).join('') ;
+  ).join('');
 
-  return `<div class="or">
+  // Botón según rol
+  let accionBtn = '';
+  const tieneSolicitud = p.solicitudEliminacion;
+  if (CU && CU.rol === 'admin') {
+    // Admin: botón de eliminar directo + aprobar solicitudes
+    accionBtn = `<button id="del-ped-${p.id}" onclick="eliminarPedidoAdmin('${p.id}');event.stopPropagation();"
+      style="margin-top:3px;padding:5px 9px;background:rgba(255,82,82,.15);border:1px solid rgba(255,82,82,.3);border-radius:6px;color:#FF8080;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fn);">🗑</button>`;
+  } else if (!tieneSolicitud) {
+    // Cajero/Repartidor: botón para solicitar eliminación
+    accionBtn = `<button onclick="solicitarEliminacion('${p.id}');event.stopPropagation();"
+      style="margin-top:3px;padding:5px 9px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.25);border-radius:6px;color:var(--am);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fn);">⚠️ Error</button>`;
+  } else {
+    // Ya tiene solicitud pendiente
+    accionBtn = `<span style="font-size:10px;color:var(--am);margin-top:3px;">⏳ Solicitud enviada</span>`;
+  }
+
+  return `<div class="or" style="${tieneSolicitud?'border-left:3px solid var(--am);padding-left:10px;':''}">
     <div class="oi" onclick="abrirDetalle('${p.id}')">
-      <div class="on2">${p.cliente}</div>
+      <div class="on2">${p.cliente}${tieneSolicitud?` <span style="font-size:10px;color:var(--am);">⚠️ solicitud</span>`:''}${p.flagEliminado?` <span style="font-size:10px;color:var(--re);">🗑 eliminado</span>`:''}</div>
       <div class="od">${resumenProductos(p.cantidades||p.cantidadesRecogidas)} · <span style="color:${repColor};font-weight:600;">${p.repartidor} ${repDot}</span> · ${p.fecha}</div>
     </div>
-    <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+    <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       ${estadoBadge(p.estado)}
       <div style="font-size:14px;font-weight:700;">${p.total>0?'$'+p.total:''}</div>
-      ${p.estado!=='entregado'?`
+      ${p.estado!=='entregado' && CU?.rol==='admin'?`
       <select onchange="reasignarPedido('${p.id}',this.value)" onclick="event.stopPropagation()"
         style="font-size:11px;background:var(--bg3);border:1px solid var(--bo);border-radius:6px;color:var(--ac);padding:3px 4px;cursor:pointer;max-width:100px;">
         ${repOptions}
       </select>`:''}
+      ${accionBtn}
     </div>
   </div>`;
 }
 
+// ─── SOLICITUDES DE ELIMINACIÓN ──────────────────────────
+function solicitarEliminacion(id) {
+  const pedidos = DB.get();
+  const idx = pedidos.findIndex(p=>p.id===id); if(idx<0) return;
+  if(pedidos[idx].solicitudEliminacion) { toast('Ya enviaste esta solicitud — espera que el admin la apruebe'); return; }
+  pedidos[idx].solicitudEliminacion = true;
+  pedidos[idx].solicitudPor = CU?.name || '?';
+  pedidos[idx].solicitudTs  = Date.now();
+  DB.set(pedidos);
+  toast('⚠️ Solicitud enviada a Pedro — él aprobará la eliminación');
+  refreshAll();
+}
+
+function eliminarPedidoAdmin(id) {
+  const btn = document.getElementById('del-ped-'+id);
+  if(btn && btn.dataset.confirm !== '1') {
+    btn.dataset.confirm = '1';
+    btn.textContent = '⚠️ ¿Seguro?';
+    btn.style.background = 'rgba(255,82,82,.4)';
+    setTimeout(() => {
+      if(btn && btn.dataset.confirm==='1') {
+        btn.dataset.confirm='0'; btn.textContent='🗑';
+        btn.style.background='rgba(255,82,82,.15)';
+      }
+    }, 3000);
+    return;
+  }
+  // Confirmar: eliminar
+  const pedidos = DB.get().filter(p=>p.id!==id);
+  DB.set(pedidos);
+  toast('✓ Pedido eliminado');
+  refreshAll();
+}
+
+function aprobarEliminacion(id) {
+  eliminarPedidoAdmin(id);
+}
+
+function rechazarEliminacion(id) {
+  const pedidos = DB.get();
+  const idx = pedidos.findIndex(p=>p.id===id); if(idx<0) return;
+  delete pedidos[idx].solicitudEliminacion;
+  delete pedidos[idx].solicitudPor;
+  delete pedidos[idx].solicitudTs;
+  DB.set(pedidos);
+  toast('Solicitud rechazada — pedido se mantiene');
+  refreshAll();
+}
+
+function renderSolicitudes() {
+  const pedidos = DB.get();
+  const solicitudes = pedidos.filter(p => p.solicitudEliminacion);
+  const sec = document.getElementById('admin-solicitudes-sec');
+  const lista = document.getElementById('admin-solicitudes-lista');
+  const badge = document.getElementById('admin-solicitudes-badge');
+  if(!sec || !lista) return;
+  if(solicitudes.length === 0) { sec.style.display='none'; return; }
+  sec.style.display = 'block';
+  if(badge) badge.textContent = solicitudes.length + ' pendiente' + (solicitudes.length>1?'s':'');
+  lista.innerHTML = solicitudes.map(p=>`
+    <div style="background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.25);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${p.cliente}</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:8px;">
+        ${resumenProductos(p.cantidades)} · $${p.total} · ${p.repartidor}<br>
+        <span style="color:var(--am);">⚠️ Solicitado por ${p.solicitudPor}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="aprobarEliminacion('${p.id}')" 
+          style="flex:1;padding:10px;background:rgba(255,82,82,.2);border:1px solid rgba(255,82,82,.4);border-radius:var(--rs);color:#FF8080;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+          🗑 Eliminar
+        </button>
+        <button onclick="rechazarEliminacion('${p.id}')"
+          style="flex:1;padding:10px;background:rgba(255,255,255,.06);border:1px solid var(--bo);border-radius:var(--rs);color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+          ✕ Rechazar
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+// ─── REASIGNAR PEDIDO ─────────────────────────────────────
 function reasignarPedido(id, nuevoRep) {
   const pedidos = DB.get();
   const idx = pedidos.findIndex(p => p.id === id); if (idx < 0) return;
@@ -3266,6 +3409,103 @@ function initReportes() {
   const ini = document.getElementById('rep-fecha-ini'); if(ini) ini.value = hace7;
   const fin = document.getElementById('rep-fecha-fin'); if(fin) fin.value = hoy;
   selPeriodo('dia');
+}
+
+// ─── LIMPIAR REGISTROS (solo admin) ──────────────────────
+function renderLimpiar() {
+  // Info del día actual
+  const pedidos = DB.get();
+  const ventas  = DB.getVentas();
+  const hoy     = new Date().toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+  const fEl     = document.getElementById('limpiar-hoy-fecha');
+  const iEl     = document.getElementById('limpiar-hoy-info');
+  if(fEl) fEl.textContent = '📅 ' + hoy;
+  if(iEl) iEl.textContent = pedidos.length + ' pedidos · ' + ventas.length + ' ventas registradas';
+
+  // Historial
+  const historial = JSON.parse(localStorage.getItem('am_historial')||'[]').reverse();
+  const lista = document.getElementById('limpiar-historial'); if(!lista) return;
+  if(historial.length === 0) {
+    lista.innerHTML = '<div class="empty"><div class="ei">📂</div><p>Sin historial guardado.</p></div>';
+    return;
+  }
+  lista.innerHTML = historial.map((dia,i) => {
+    const nPed = (dia.pedidos||[]).length;
+    const nVen = (dia.ventas||[]).length;
+    const fecha = new Date(dia.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+    const total = [...(dia.ventas||[])].reduce((s,v)=>s+(v.total||0),0) +
+                  [...(dia.pedidos||[])].filter(p=>p.estado==='entregado').reduce((s,p)=>s+(p.total||0),0);
+    return `<div class="card2" style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${fecha}</div>
+          <div style="font-size:12px;color:var(--tx2);margin-top:2px;">${nPed} pedidos · ${nVen} ventas · <span style="color:var(--tl);">$${total}</span></div>
+        </div>
+        <button id="btn-del-${dia.fecha}" onclick="confirmarLimpiar('dia','${dia.fecha}')"
+          style="padding:9px 13px;background:rgba(255,82,82,.15);border:1px solid rgba(255,82,82,.3);border-radius:var(--rs);color:#FF8080;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">
+          🗑
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function confirmarLimpiar(tipo, fecha) {
+  const btn = tipo==='hoy' ? document.getElementById('btn-limpiar-hoy')
+            : tipo==='dia' ? document.getElementById('btn-del-'+fecha)
+            : null;
+
+  // Doble tap para confirmar (sin confirm() que no funciona en PWA)
+  if(btn && btn.dataset.confirm !== '1') {
+    btn.dataset.confirm = '1';
+    const original = btn.textContent;
+    btn.textContent = '⚠️ ¿Confirmar?';
+    btn.style.background = 'rgba(255,82,82,.4)';
+    toast('Toca de nuevo para confirmar');
+    setTimeout(() => {
+      if(btn.dataset.confirm === '1') {
+        btn.dataset.confirm = '0';
+        btn.textContent = original;
+        btn.style.background = 'rgba(255,82,82,.15)';
+      }
+    }, 3000);
+    return;
+  }
+
+  if(tipo === 'hoy') {
+    // Borrar datos del día actual
+    localStorage.removeItem('am_pedidos');
+    localStorage.removeItem('am_ventas');
+    localStorage.removeItem('am_gastos');
+    // También en Firebase
+    if(fbdb) {
+      fbdb.collection(COL).doc('pedidos').set({data:[],ts:Date.now()}).catch(()=>{});
+      fbdb.collection(COL).doc('ventas').set({data:[],ts:Date.now()}).catch(()=>{});
+      fbdb.collection(COL).doc('gastos').set({data:[],ts:Date.now()}).catch(()=>{});
+    }
+    toast('✓ Registros de hoy eliminados');
+  } else if(tipo === 'dia') {
+    // Borrar día específico del historial
+    const historial = JSON.parse(localStorage.getItem('am_historial')||'[]');
+    const nuevo = historial.filter(d => d.fecha !== fecha);
+    localStorage.setItem('am_historial', JSON.stringify(nuevo));
+    if(fbdb) fbdb.collection(COL).doc('historial').set({data:nuevo,ts:Date.now()}).catch(()=>{});
+    toast('✓ Registros del ' + fecha + ' eliminados');
+  } else if(tipo === 'todo') {
+    // Borrar absolutamente todo
+    const keys = ['am_pedidos','am_ventas','am_gastos','am_historial','am_pedidos_ts','am_ventas_ts','am_gastos_ts'];
+    keys.forEach(k => localStorage.removeItem(k));
+    // Firebase
+    if(fbdb) {
+      ['pedidos','ventas','gastos','historial'].forEach(col =>
+        fbdb.collection(COL).doc(col).set({data:[],ts:Date.now()}).catch(()=>{})
+      );
+    }
+    toast('✓ Todos los registros eliminados');
+  }
+
+  refreshAll();
+  setTimeout(() => renderLimpiar(), 300);
 }
 
 // ─── LIMPIAR DATOS DE PRUEBA ──────────────────────────────
