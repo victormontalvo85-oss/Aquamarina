@@ -2577,32 +2577,49 @@ function startQR() {
   const estado = document.getElementById('qr-estado');
   const btn = document.getElementById('qr-start-btn');
   if(btn) btn.style.display = 'none';
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    .then(stream => {
-      qrStream = stream;
-      video.srcObject = stream;
-      video.play();
-      if(estado) estado.textContent = 'Apunta al código QR del cliente';
-      scanQRFrame();
-    })
-    .catch(err => {
-      if(estado) estado.textContent = 'Sin acceso a cámara — usa Chrome';
-      if(btn){ btn.style.display='block'; btn.textContent='🔄 Reintentar'; }
-      toast('Permite el acceso a la cámara en el navegador');
-    });
+  if(estado) estado.textContent = 'Iniciando cámara...';
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+  })
+  .then(stream => {
+    qrStream = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', true);
+    video.play();
+    if(estado) estado.textContent = '📷 Apunta al código QR del cliente';
+    requestAnimationFrame(scanQRFrame);
+  })
+  .catch(err => {
+    if(estado) estado.textContent = '⚠️ Sin acceso a cámara';
+    if(btn){ btn.style.display='block'; btn.textContent='🔄 Reintentar'; }
+    toast('Permite el acceso a la cámara en Chrome');
+    console.warn('Camera error:', err);
+  });
 }
 function scanQRFrame() {
   const video = document.getElementById('qr-video');
   const canvas = document.getElementById('qr-canvas');
-  if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+  if (!video || !canvas) return;
+  // Esperar a que el video tenga datos
+  if (video.readyState < 2) {
     qrAnimFrame = requestAnimationFrame(scanQRFrame); return;
   }
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  if (video.videoWidth === 0) {
+    qrAnimFrame = requestAnimationFrame(scanQRFrame); return;
+  }
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR && jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'dontInvert' });
-  if (code) {
+  let imageData;
+  try { imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); }
+  catch(e) { qrAnimFrame = requestAnimationFrame(scanQRFrame); return; }
+  // Intentar con ambas inversiones para mejor detección
+  const code = (typeof jsQR !== 'undefined') && (
+    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'dontInvert' }) ||
+    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'onlyInvert' })
+  );
+  if (code && code.data) {
     stopQR();
     procesarQR(code.data);
   } else {
@@ -2611,32 +2628,85 @@ function scanQRFrame() {
 }
 function stopQR() {
   try {
-  if(qrStream){ qrStream.getTracks().forEach(t=>t.stop()); qrStream=null; }
-  if(qrAnimFrame){ cancelAnimationFrame(qrAnimFrame); qrAnimFrame=null; }
-  const estado = document.getElementById('qr-estado');
-  if(estado) estado.textContent = '';
-  const btn = document.getElementById('qr-start-btn');
-  if(btn){ btn.style.display='block'; btn.textContent='📷 Activar cámara y escanear'; }
+    if(qrStream){ qrStream.getTracks().forEach(t=>t.stop()); qrStream=null; }
+    if(qrAnimFrame){ cancelAnimationFrame(qrAnimFrame); qrAnimFrame=null; }
+    const estado = document.getElementById('qr-estado');
+    if(estado) estado.textContent = '';
+    const btn = document.getElementById('qr-start-btn');
+    if(btn){ btn.style.display='block'; btn.textContent='📷 Activar cámara y escanear'; }
   } catch(e){}
 }
+function resetQR() { stopQR(); } // Alias para compatibilidad
 function procesarQR(data) {
-  // El QR contiene JSON: { nombre, direccion, telefono }
+  console.log('[QR] Escaneado:', data);
+  // Intentar parsear como JSON (QRs generados por la app)
   let cli = null;
-  try { cli = JSON.parse(data); } catch(e) { cli = { nombre: data, direccion: '', telefono: '' }; }
+  try {
+    const parsed = JSON.parse(data);
+    cli = { nombre: parsed.nombre||parsed.name||data, direccion: parsed.direccion||parsed.dir||parsed.address||'', telefono: parsed.telefono||parsed.tel||parsed.phone||'' };
+  } catch(e) {
+    // No es JSON — buscar en la base de datos por el texto del QR
+    const q = data.toLowerCase().trim();
+    const clientes = DBcli.get();
+    const encontrado = clientes.find(c =>
+      c.nombre.toLowerCase().includes(q) || q.includes(c.nombre.toLowerCase()) ||
+      c.dir.toLowerCase().includes(q)    || q.includes(c.dir.toLowerCase()) ||
+      (c.tel && c.tel.includes(q))
+    );
+    if(encontrado) {
+      cli = { nombre: encontrado.nombre, direccion: encontrado.dir, telefono: encontrado.tel||'' };
+    } else {
+      // Usar el texto del QR directamente como nombre/dirección
+      cli = { nombre: data, direccion: '', telefono: '' };
+    }
+  }
+
   const r = document.getElementById('qr-resultado'); if(r) r.style.display='block';
   const av=document.getElementById('qr-avatar'); if(av) av.textContent=(cli.nombre||'?')[0].toUpperCase();
   const nm=document.getElementById('qr-nombre'); if(nm) nm.textContent=cli.nombre||data;
-  const dr=document.getElementById('qr-dir'); if(dr) dr.textContent=(cli.direccion||'')+(cli.telefono?' · '+cli.telefono:'');
-  const pedidos=DB.get(); const historial=pedidos.filter(p=>p.cliente===cli.nombre).length;
-  const inf=document.getElementById('qr-info'); if(inf) inf.textContent=historial+' pedidos registrados';
-  const ac=document.getElementById('qr-acciones'); if(!ac) return;
-  document.getElementById('np-cliente').value = cli.nombre+(cli.direccion?' — '+cli.direccion:'');
-  if(rolQR==='cajero'){
-    ac.innerHTML=`<div class="alt alt-t" style="font-size:13px;">✓ Cliente cargado — elige acción</div><button class="btn btn-tl" onclick="go('s-nueva-venta')">🛒 Venta en local</button><button class="btn btn-ac" onclick="go('s-nuevo-pedido')">🛵 Crear pedido a domicilio</button><button class="btn btn-out" onclick="go('s-cobrar-caja')">💳 Cobrar pedido pendiente</button>`;
-  } else {
-    ac.innerHTML=`<div class="alt alt-t" style="font-size:13px;">✓ Cliente cargado — elige acción</div><button class="btn btn-ac" onclick="go('s-nuevo-pedido')">➕ Crear pedido aquí</button>`;
+  const dr=document.getElementById('qr-dir'); if(dr) dr.textContent=(cli.direccion||'—')+(cli.telefono?' · 📞'+cli.telefono:'');
+
+  // Historial de pedidos y puntos de lealtad
+  const pedidos = DB.get();
+  const historial = pedidos.filter(p=>p.cliente && p.cliente.toLowerCase().includes(cli.nombre.toLowerCase())).length;
+  const clienteDB = DBcli.get().find(c=>c.nombre.toLowerCase()===cli.nombre.toLowerCase());
+  const compras = clienteDB?.compras || 0;
+  const cfg = DBlealtad.getConfig();
+  const meta = cfg.meta || 10;
+  const falta = cfg.activo ? (meta - (compras % meta)) : 0;
+
+  const inf=document.getElementById('qr-info');
+  if(inf) {
+    let infoText = historial + ' pedidos registrados';
+    if(cfg.activo && compras > 0) {
+      if(clienteDB?.premiosPendientes > 0) {
+        infoText += ` · 🎁 ¡Tiene ${clienteDB.premiosPendientes} premio${clienteDB.premiosPendientes>1?'s':''}!`;
+      } else {
+        infoText += ` · ⭐ ${compras} compras (faltan ${falta} para premio)`;
+      }
+    }
+    inf.textContent = infoText;
+    inf.style.color = clienteDB?.premiosPendientes > 0 ? 'gold' : 'var(--tl)';
   }
-  toast('✓ QR escaneado — '+( cli.nombre||data));
+
+  // Pre-llenar campo de cliente en nuevo pedido
+  const npCli = document.getElementById('np-cliente');
+  if(npCli) npCli.value = cli.nombre + (cli.direccion ? ' — ' + cli.direccion : '');
+
+  const ac=document.getElementById('qr-acciones'); if(!ac) return;
+  const premioBtn = (clienteDB?.premiosPendientes > 0 && cfg.activo) ?
+    `<button class="btn" style="background:rgba(255,215,0,.2);border:1px solid gold;color:gold;margin-bottom:8px;" onclick="aplicarPremioLealtad('${clienteDB.id}');go('s-qr','${rolQR}')">🎁 Aplicar premio — ${PREMIO_LABELS[cfg.premio]}</button>` : '';
+
+  if(rolQR==='cajero'){
+    ac.innerHTML=`${premioBtn}<div class="alt alt-t" style="font-size:13px;margin-bottom:10px;">✓ ${cli.nombre} — elige acción</div>
+      <button class="btn btn-tl" onclick="go('s-nueva-venta')">🛒 Venta en local</button>
+      <button class="btn btn-ac" onclick="go('s-nuevo-pedido')">🛵 Nuevo pedido a domicilio</button>
+      <button class="btn btn-out" onclick="go('s-cobrar-caja')">💳 Cobrar pedido pendiente</button>`;
+  } else {
+    ac.innerHTML=`${premioBtn}<div class="alt alt-t" style="font-size:13px;margin-bottom:10px;">✓ ${cli.nombre} cargado</div>
+      <button class="btn btn-ac" onclick="go('s-nuevo-pedido')">➕ Crear pedido aquí</button>`;
+  }
+  toast('✓ QR escaneado — '+(cli.nombre||data));
 }
 
 // ─── DRAWER IZQUIERDO ─────────────────────────────────────
@@ -2858,6 +2928,7 @@ function renderClientes() {
           ${c.notas?`<div style="font-size:12px;color:var(--tx3);margin-top:3px;font-style:italic;">💬 ${c.notas}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-left:8px;">
+          <button onclick="generarQRCliente('${c.id}')" style="background:rgba(0,212,236,.1);border:1px solid var(--bo2);border-radius:7px;color:var(--ac);padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">📱 QR</button>
           <button onclick="abrirFormCliente('${c.id}')" style="background:rgba(0,212,236,.1);border:1px solid var(--bo2);border-radius:7px;color:var(--ac);padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">✏️ Editar</button>
           <button onclick="crearPedidoDesdeCliente('${c.id}')" style="background:rgba(0,200,120,.1);border:1px solid rgba(0,200,120,.25);border-radius:7px;color:var(--tl);padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">➕ Pedido</button>
           <button id="del-cli-${c.id}" onclick="eliminarCliente('${c.id}')" style="background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:7px;color:#FF8080;padding:6px 10px;cursor:pointer;font-size:12px;font-family:var(--fn);font-weight:600;">🗑</button>
@@ -3692,6 +3763,35 @@ function renderLealtad() {
       </button>`:''}
     </div>`;
   }).join('');
+}
+
+// Generar QR para un cliente y mostrarlo en pantalla
+function generarQRCliente(id) {
+  const c = DBcli.get().find(x=>x.id===id); if(!c) return;
+  // Contenido del QR: JSON con datos del cliente
+  const contenido = JSON.stringify({ nombre: c.nombre, direccion: c.dir, telefono: c.tel||'' });
+  const encodedData = encodeURIComponent(contenido);
+  // Usar API pública de QR (no requiere instalación)
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedData}&bgcolor=0D2535&color=00D4EC&margin=10`;
+
+  // Mostrar modal con el QR
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;';
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border:1.5px solid var(--bo2);border-radius:var(--r);padding:24px;text-align:center;max-width:320px;width:100%;">
+      <div style="font-size:16px;font-weight:700;color:var(--ac);margin-bottom:4px;">${c.nombre}</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:16px;">📍 ${c.dir}</div>
+      <img src="${qrUrl}" style="width:220px;height:220px;border-radius:12px;display:block;margin:0 auto 16px;" alt="QR ${c.nombre}"
+           onerror="this.src='';this.parentElement.querySelector('.qr-fallback').style.display='block'"/>
+      <div class="qr-fallback" style="display:none;padding:12px;background:var(--bg3);border-radius:var(--rs);font-size:12px;color:var(--tx2);margin-bottom:16px;">
+        Sin internet — conecta para ver el QR
+      </div>
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:14px;">Toma una captura de pantalla e imprímelo</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="this.closest('[style*=fixed]').remove()" style="flex:1;padding:12px;background:rgba(255,255,255,.08);border:1px solid var(--bo);border-radius:var(--rs);color:var(--tx);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fn);">✕ Cerrar</button>
+      </div>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
 }
 
 // ─── LIMPIAR REGISTROS (solo admin) ──────────────────────
