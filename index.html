@@ -1612,8 +1612,9 @@ function renderCajero() {
   const pedidos = DB.get();
   const ventas = DB.getVentas();
   const localTotal = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
-  const domTotal = pedidos.filter(p=>p.estado==='entregado').reduce((s,p)=>s+p.total,0);
-  const total = localTotal + domTotal;
+  const domTotal   = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const total      = localTotal + domTotal + recolTotal;
   const activosCount = pedidos.filter(p=>p.estado==='pendiente'||p.estado==='en_ruta').length;
   const entregados = pedidos.filter(p=>p.estado==='entregado').length;
   const pendientes = pedidos.filter(p=>p.estado!=='entregado'&&!p.pagado).length;
@@ -1684,11 +1685,14 @@ function renderRepartidor() {
 
 function renderAdmin() {
   const pedidos = DB.get();
-  const ventas = DB.getVentas();
-  const total = ventas.reduce((s,v)=>s+v.total,0) + pedidos.filter(p=>p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const ventas  = DB.getVentas();
+  // SOLO ventas en local — los domicilios ya están en pedidos
+  const localTotal  = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
+  const domTotal    = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal  = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const total       = localTotal + domTotal + recolTotal;
   const ts=document.getElementById('admin-total'); if(ts) ts.textContent='$'+total;
   const ps=document.getElementById('admin-pedidos'); if(ps) ps.textContent=pedidos.length;
-  // Mostrar solicitudes de eliminación pendientes
   renderSolicitudes();
   const lista=document.getElementById('admin-pedidos-lista');
   if(!lista) return;
@@ -1698,8 +1702,11 @@ function renderAdmin() {
 
 function renderDomingo() {
   const pedidos = DB.get();
-  const ventas = DB.getVentas();
-  const total = ventas.reduce((s,v)=>s+v.total,0) + pedidos.filter(p=>p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const ventas  = DB.getVentas();
+  const localTotal = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
+  const domTotal   = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const total      = localTotal + domTotal + recolTotal;
   const ts=document.getElementById('dom-total'); if(ts) ts.textContent='$'+total;
   const ps=document.getElementById('dom-pedidos'); if(ps) ps.textContent=pedidos.length;
   const lista=document.getElementById('dom-pedidos-lista');
@@ -2816,8 +2823,11 @@ function renderDrawerCorte() {
   if(fr){fr.style.display=fiadoTotal>0?'flex':'none';set('d-corte-fiado','$'+fiadoTotal+' (pendiente)'); }
   const gr=document.getElementById('d-corte-gasto-row');
   if(gr){gr.style.display=totalGastos>0?'flex':'none';set('d-corte-gastos','-$'+totalGastos);}
-  // Productos
-  const allV=[...ventas,...pedidos.filter(p=>p.estado==='entregado')];
+  // Productos — solo de ventas locales + pedidos entregados (no de ventas tipo domicilio que duplican)
+  const allV=[
+    ...ventas.filter(v=>v.tipo_venta==='local'),
+    ...pedidos.filter(p=>p.estado==='entregado')
+  ];
   const cant={g20:0,g10:0,g5:0,hielo:0};
   allV.forEach(v=>{if(!v.cantidades)return;cant.g20+=v.cantidades.g20||0;cant.g10+=v.cantidades.g10||0;cant.g5+=v.cantidades.g5||0;cant.hielo+=v.cantidades.hielo||0;});
   const lp=DB.getPrecios('local');
@@ -3464,8 +3474,11 @@ function generarReporte(periodo) {
   const neto        = ingresos - gastosTotal;
   const numPedidos  = pedFiltro.length;
 
-  // Desglose productos
-  const allTx = [...venFiltro, ...pedFiltro.filter(p=>p.estado==='entregado')];
+  // Desglose productos — ventas locales + pedidos entregados (sin duplicar domicilios)
+  const allTx = [
+    ...venFiltro.filter(v=>v.tipo_venta==='local'),
+    ...pedFiltro.filter(p=>p.estado==='entregado')
+  ];
   const cant = {g20:0,g10:0,g5:0,hielo:0};
   const montos = {g20:0,g10:0,g5:0,hielo:0};
   const lp = DB.getPrecios('local');
