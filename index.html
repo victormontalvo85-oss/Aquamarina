@@ -29,7 +29,9 @@
 html,body{height:100%;background:var(--bg);font-family:var(--fn);color:var(--tx);margin:0;padding:0;overflow:hidden;}
 #app{
   position:fixed;
-  top:0;left:0;right:0;bottom:0;
+  top:0;left:0;right:0;
+  height:100vh;
+  height:calc(var(--vh,1vh)*100);
   max-width:430px;
   margin:0 auto;
   display:flex;
@@ -3314,6 +3316,15 @@ setInterval(() => {
     if (checkAutoLogin()) setTimeout(() => entrarApp(), 100);
   }
 })();
+
+// ─── VIEWPORT FIX ANDROID ─────────────────────────────────
+function setVH() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', vh + 'px');
+}
+setVH();
+window.addEventListener('resize', setVH);
+window.addEventListener('orientationchange', () => setTimeout(setVH, 150));
 
 // ─── SERVICE WORKER (PWA offline) ─────────────────────────
 if ('serviceWorker' in navigator) {
