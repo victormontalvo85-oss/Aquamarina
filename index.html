@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -959,18 +958,17 @@ function renderCajero() {
   const localTotal = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
   const domTotal = pedidos.filter(p=>p.estado==='entregado').reduce((s,p)=>s+p.total,0);
   const total = localTotal + domTotal;
-  const activos = pedidos.filter(p=>p.estado==='pendiente'||p.estado==='en_ruta').length;
+  const activosCount = pedidos.filter(p=>p.estado==='pendiente'||p.estado==='en_ruta').length;
   const entregados = pedidos.filter(p=>p.estado==='entregado').length;
   const pendientes = pedidos.filter(p=>p.estado!=='entregado'&&!p.pagado).length;
 
   const ts=document.getElementById('cajero-total'); if(ts) ts.textContent='$'+total;
-  const as=document.getElementById('cajero-activos'); if(as) as.textContent=activos;
+  const as=document.getElementById('cajero-activos'); if(as) as.textContent=activosCount;
   const es=document.getElementById('cajero-entregados'); if(es) es.textContent=entregados;
   const ps=document.getElementById('cajero-pendientes'); if(ps) ps.textContent=pendientes;
 
   const lista = document.getElementById('cajero-pedidos-lista');
   if (!lista) return;
-  // #4: Mostrar solo pedidos activos en pantalla principal
   const activos = pedidos.filter(p=>p.estado!=='entregado');
   if (pedidos.length === 0) {
     lista.innerHTML = '<div class="empty"><div class="ei">📋</div><p>Aún no hay pedidos hoy.<br>Crea uno desde el tab ➕</p></div>';
