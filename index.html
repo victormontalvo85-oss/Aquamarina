@@ -250,7 +250,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <p style="font-size:13px;color:var(--tx2);letter-spacing:.5px;margin-top:-4px;">Sistema de gestión de ventas</p>
   </div>
   <span class="lbl">Usuario</span>
-  <input class="inp" id="lu" type="text" placeholder="admin / cajero / adan / pedro / manuel" autocomplete="off"/>
+  <input class="inp" id="lu" type="text" placeholder="Usuario" autocomplete="off"/>
   <span class="lbl">Contraseña</span>
   <input class="inp" id="lp" type="password" placeholder="••••••••"/>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
@@ -260,35 +260,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
   <button class="btn btn-ac" onclick="doLogin()">Entrar</button>
   <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--bo);">
     <p style="font-size:12px;color:var(--tx2);font-weight:700;margin-bottom:4px;">Cuentas:</p>
-    <p style="font-size:12px;color:var(--tx3);">pedro/pedro123 · cajero/cajero123</p>
-    <p style="font-size:12px;color:var(--tx3);margin-top:2px;">adan/adan123 · manuel/manuel123</p>
-    <p style="font-size:12px;color:var(--tx3);margin-top:2px;">adan/adan123 · manuel/manuel123</p>
   </div>
-</div>
-
-<!-- ══ PIN ══ -->
-<div id="s-pin" class="scr" style="justify-content:center;padding:44px 24px 24px;">
-  <div style="text-align:center;margin-bottom:28px;">
-    <div id="pin-av" style="width:60px;height:60px;border-radius:50%;margin:0 auto 14px;font-size:24px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bo2);background:var(--bg3);"></div>
-    <h2 id="pin-nm" style="font-size:19px;font-weight:700;color:var(--tx);"></h2>
-    <p style="font-size:14px;color:var(--tx2);margin-top:5px;">Ingresa tu PIN rápido</p>
-  </div>
-  <div style="display:flex;gap:14px;justify-content:center;margin-bottom:28px;" id="pin-dots"></div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:270px;margin:0 auto;">
-    <button onclick="ap('1')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">1</button>
-    <button onclick="ap('2')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">2</button>
-    <button onclick="ap('3')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">3</button>
-    <button onclick="ap('4')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">4</button>
-    <button onclick="ap('5')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">5</button>
-    <button onclick="ap('6')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">6</button>
-    <button onclick="ap('7')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">7</button>
-    <button onclick="ap('8')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">8</button>
-    <button onclick="ap('9')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">9</button>
-    <button onclick="skipPin()" style="padding:18px;font-size:12px;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx2);font-family:var(--fn);">Omitir</button>
-    <button onclick="ap('0')" style="padding:18px;font-size:22px;font-weight:700;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">0</button>
-    <button onclick="cp()" style="padding:18px;font-size:20px;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;color:var(--tx);font-family:var(--fn);">⌫</button>
-  </div>
-  <button style="margin-top:22px;background:none;border:none;color:var(--tx3);font-size:13px;cursor:pointer;font-family:var(--fn);" onclick="openModal('modal-logout')">Cerrar sesión</button>
 </div>
 
 <!-- ══ SELECTOR MODO ══ -->
@@ -414,6 +386,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <button class="tab on"><span class="ti">🏠</span>Inicio</button>
     <button class="tab" onclick="go('s-precios')"><span class="ti">💲</span>Precios</button>
     <button class="tab" onclick="go('s-corte')"><span class="ti">🗂</span>Corte</button>
+    <button class="tab" onclick="go('s-usuarios');renderUsuarios()"><span class="ti">👥</span>Usuarios</button>
     <button class="tab" onclick="go('s-reportes')"><span class="ti">📊</span>Reportes</button>
   </div>
 </div>
@@ -877,7 +850,52 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
   </div>
 </div>
 
-<!-- ══ REPORTES ══ -->
+<!-- ══ USUARIOS ══ -->
+<div id="s-usuarios" class="scr">
+  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">👥 Gestión de usuarios</span></div>
+  <div class="body">
+    <div class="alt alt-b" style="font-size:13px;margin-bottom:14px;">Solo Pedro puede crear y modificar usuarios. Las contraseñas solo las conoce el administrador.</div>
+
+    <!-- Formulario agregar/editar usuario -->
+    <button class="btn btn-ac" style="margin-bottom:14px;" onclick="abrirFormUsuario()">+ Agregar nuevo usuario</button>
+
+    <div id="user-form" style="display:none;background:var(--card2);border:1.5px solid var(--bo2);border-radius:var(--r);padding:16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:15px;font-weight:700;color:var(--ac);" id="user-form-title">Nuevo usuario</span>
+        <button onclick="cerrarFormUsuario()" style="background:none;border:none;color:var(--tx3);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <input type="hidden" id="user-edit-key"/>
+      <span class="lbl">Nombre completo *</span>
+      <input class="inp" id="user-nombre" placeholder="Ej: Carlos López"/>
+      <span class="lbl">Usuario (para iniciar sesión) *</span>
+      <input class="inp" id="user-key" placeholder="Ej: carlos" style="text-transform:lowercase;"/>
+      <span class="lbl">Contraseña *</span>
+      <div style="position:relative;margin-bottom:12px;">
+        <input class="inp" id="user-pass" type="password" placeholder="Mínimo 6 caracteres" style="margin-bottom:0;padding-right:48px;"/>
+        <button onclick="togglePassVis('user-pass')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx3);cursor:pointer;font-size:18px;">👁</button>
+      </div>
+      <span class="lbl">Rol *</span>
+      <select class="inp" id="user-rol">
+        <option value="cajero">Cajero</option>
+        <option value="repartidor">Repartidor</option>
+      </select>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--bo);margin-bottom:14px;">
+        <span style="font-size:14px;font-weight:600;">Usuario activo</span>
+        <label class="sw"><input type="checkbox" id="user-activo" checked/><span class="sls"></span></label>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-tl" style="flex:1;margin-bottom:0;" onclick="guardarUsuario()">✓ Guardar</button>
+        <button class="btn btn-out" style="flex:1;margin-bottom:0;" onclick="cerrarFormUsuario()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Lista de usuarios -->
+    <p class="st">Usuarios del sistema</p>
+    <div id="usuarios-lista"></div>
+  </div>
+</div>
+
+</div>
 <div id="s-reportes" class="scr">
   <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">📊 Reportes</span></div>
   <div class="body">
@@ -1121,12 +1139,22 @@ const DB = {
   notify(){ window.dispatchEvent(new Event('am_update')); }
 };
 
-const USERS = {
-  pedro:  { pass:'pedro123',  name:'Pedro', color:'#00D4EC', bg:'#1A3D52', screen:'s-modo',   rol:'admin' },
-  cajero: { pass:'cajero123', name:'Cajero', color:'#00C878', bg:'#163347', screen:'s-cajero', rol:'cajero' },
-  adan:   { pass:'adan123',   name:'Adán',   color:'#FFB300', bg:'#1A3D52', screen:'s-modo',   rol:'repartidor' },
-  manuel: { pass:'manuel123', name:'Manuel', color:'#C084FC', bg:'#1A3D52', screen:'s-modo',   rol:'repartidor' }
+// Usuarios — Pedro es el admin maestro, los demás los gestiona él
+const USUARIOS_DEFAULT = {
+  pedro:  { pass:'Aquamarina3883', name:'Pedro',  color:'#00D4EC', bg:'#1A3D52', screen:'s-modo',   rol:'admin',       activo:true },
+  cajero: { pass:'cajero123',      name:'Cajero', color:'#00C878', bg:'#163347', screen:'s-cajero', rol:'cajero',      activo:true },
+  adan:   { pass:'adan123',        name:'Adán',   color:'#FFB300', bg:'#1A3D52', screen:'s-modo',   rol:'repartidor',  activo:true },
+  manuel: { pass:'manuel123',      name:'Manuel', color:'#C084FC', bg:'#1A3D52', screen:'s-modo',   rol:'repartidor',  activo:true }
 };
+// Cargar usuarios desde localStorage (admin puede modificarlos)
+function getUsuarios() {
+  const saved = localStorage.getItem('am_usuarios');
+  if (saved) return JSON.parse(saved);
+  return JSON.parse(JSON.stringify(USUARIOS_DEFAULT));
+}
+function saveUsuarios(u) { localStorage.setItem('am_usuarios', JSON.stringify(u)); }
+// USERS dinámico — se actualiza al iniciar y al guardar cambios
+let USERS = getUsuarios();
 
 const MODOS = {
   admin: [
@@ -1159,6 +1187,7 @@ function go(id, param) {
   if (id === 's-nuevo-pedido') setTimeout(initNuevoPedido, 50);
   if (id === 's-clientes') setTimeout(renderClientes, 50);
   if (id === 's-reportes') setTimeout(initReportes, 50);
+  if (id === 's-usuarios') setTimeout(renderUsuarios, 50);
   if (id === 's-qr') { const r=document.getElementById('qr-resultado');if(r)r.style.display='none'; }
   if (id !== 's-qr') stopQR();
 }
@@ -1202,53 +1231,38 @@ const PRESENCIA = {
     return (Date.now() - parseInt(ts)) < 12 * 60 * 60 * 1000;
   },
   getRepartidores() {
-    const todos = ['Adán','Manuel'];
+    const todos = Object.entries(USERS)
+      .filter(([k,u]) => u.rol === 'repartidor' && u.activo !== false)
+      .map(([k,u]) => u.name);
     return todos.map(n => ({ name:n, online: PRESENCIA.estaOnline(n) }));
   }
 };
 
 function doLogin() {
+  USERS = getUsuarios(); // Recargar usuarios por si admin hizo cambios
   const u = document.getElementById('lu').value.trim().toLowerCase();
   const p = document.getElementById('lp').value;
   if (!u) { toast('Escribe tu usuario'); return; }
   if (!p) { toast('Escribe tu contraseña'); return; }
-  if (USERS[u] && USERS[u].pass === p) {
-    CU = { ...USERS[u], username: u };
-    // Marcar presencia si es repartidor
+  const user = USERS[u];
+  if (user && user.pass === p && user.activo !== false) {
+    CU = { ...user, username: u };
     if (CU.rol === 'repartidor') PRESENCIA.marcarOnline(CU.name);
-    buildPinDots();
-    const av = document.getElementById('pin-av'), nm = document.getElementById('pin-nm');
-    if (av) { av.textContent = CU.name[0]; av.style.background = CU.bg; av.style.color = CU.color; }
-    if (nm) nm.textContent = 'Hola, ' + CU.name;
-    go('s-pin');
-  } else toast('Usuario o contraseña incorrectos');
+    // Sin PIN — ir directo a la pantalla correspondiente
+    entrarApp();
+  } else if (user && user.activo === false) {
+    toast('Usuario inactivo — contacta al administrador');
+  } else {
+    toast('Usuario o contraseña incorrectos');
+  }
 }
-function buildPinDots() {
-  const c = document.getElementById('pin-dots'); if (!c) return;
-  c.innerHTML = [1,2,3,4].map(i => `<div id="pd${i}" style="width:16px;height:16px;border-radius:50%;border:2px solid var(--tx3);transition:.2s;"></div>`).join('');
-}
-function ap(n) {
-  PV += n;
-  for (let i=1;i<=4;i++) { const d=document.getElementById('pd'+i); if(d){d.style.background=i<=PV.length?'#00D4EC':'transparent';d.style.borderColor=i<=PV.length?'#00D4EC':'#5A8FA3';} }
-  if (PV.length >= 4) { setTimeout(() => {
-    if (CU.rol === 'admin' || CU.rol === 'repartidor') buildModo();
-    const nn = document.getElementById('cajero-nombre'); if (nn) nn.textContent = CU.rol==='cajero'?'Turno activo':CU.name+' ('+CU.rol+')';
-    const rn = document.getElementById('rep-nombre'); if (rn) rn.textContent = CU.name;
-    go(CU.screen); PV=''; resetPinDots();
-  }, 280); }
-}
-function cp() {
-  PV = PV.slice(0,-1);
-  for (let i=1;i<=4;i++) { const d=document.getElementById('pd'+i); if(d){d.style.background=i<=PV.length?'#00D4EC':'transparent';d.style.borderColor=i<=PV.length?'#00D4EC':'#5A8FA3';} }
-}
-function skipPin() {
+function entrarApp() {
   if (CU.rol === 'admin' || CU.rol === 'repartidor') buildModo();
-  // Update nombres en dashboards siempre
-  const nn = document.getElementById('cajero-nombre'); if (nn) nn.textContent = CU.rol==='cajero'?'Turno activo':CU.name+' ('+CU.rol+')';
+  const nn = document.getElementById('cajero-nombre');
+  if (nn) nn.textContent = CU.rol==='cajero'?'Turno activo':CU.name+' ('+CU.rol+')';
   const rn = document.getElementById('rep-nombre'); if (rn) rn.textContent = CU.name;
   go(CU.screen);
 }
-function resetPinDots() { for(let i=1;i<=4;i++){const d=document.getElementById('pd'+i);if(d){d.style.background='transparent';d.style.borderColor='#5A8FA3';}} }
 function doLogout() {
   closeModal('modal-logout');
   if (CU && CU.rol === 'repartidor') PRESENCIA.marcarOffline(CU.name);
@@ -2666,27 +2680,27 @@ function initNuevoPedido() {
   const tipoSec = document.getElementById('np-tipo-sec');
   const title = document.getElementById('np-title');
 
-  // Actualizar select de repartidores con estado online
+  // Actualizar select de repartidores con usuarios activos y estado online
   const sel = document.getElementById('np-repartidor');
   const statusDiv = document.getElementById('np-rep-status');
   if (sel) {
-    const reps = PRESENCIA.getRepartidores();
-    sel.innerHTML = reps.map(r =>
+    const repsActivos = Object.entries(USERS)
+      .filter(([k,u]) => u.rol === 'repartidor' && u.activo !== false)
+      .map(([k,u]) => ({ key:k, name:u.name, online: PRESENCIA.estaOnline(u.name) }));
+    sel.innerHTML = repsActivos.map(r =>
       `<option value="${r.name}">${r.name} ${r.online ? '🟢 En línea' : '⚫ No conectado'}</option>`
     ).join('');
-    // Mostrar aviso si hay repartidores offline
-    const offline = reps.filter(r=>!r.online);
     if(statusDiv) {
+      const offline = repsActivos.filter(r=>!r.online);
       if(offline.length > 0) {
         statusDiv.innerHTML = `⚠️ ${offline.map(r=>r.name).join(', ')} no ${offline.length>1?'están':'está'} en línea hoy`;
         statusDiv.style.color = 'var(--am)';
-      } else {
+      } else if(repsActivos.length > 0) {
         statusDiv.innerHTML = '✓ Todos los repartidores en línea';
         statusDiv.style.color = 'var(--tl)';
       }
     }
-    // Auto-seleccionar el primero que esté online
-    const primerOnline = reps.find(r=>r.online);
+    const primerOnline = repsActivos.find(r=>r.online);
     if(primerOnline) sel.value = primerOnline.name;
   }
 
@@ -2721,6 +2735,118 @@ function toggleVerEntregados() {
     btn.style.borderColor = verEntregados ? 'rgba(0,200,120,.35)' : 'var(--bo)';
   }
   renderCajero();
+}
+
+// ─── GESTIÓN DE USUARIOS (solo admin Pedro) ───────────────
+const ROL_COLORS = { admin:'#00D4EC', cajero:'#00C878', repartidor:'#FFB300' };
+const ROL_SCREENS = { admin:'s-modo', cajero:'s-cajero', repartidor:'s-modo' };
+const ROL_BG = { admin:'#1A3D52', cajero:'#163347', repartidor:'#1A3D52' };
+
+function abrirFormUsuario(key) {
+  const form = document.getElementById('user-form'); if(!form) return;
+  form.style.display = 'block';
+  const title = document.getElementById('user-form-title');
+  const editKey = document.getElementById('user-edit-key');
+  if (key) {
+    const u = USERS[key];
+    if(!u) return;
+    if(title) title.textContent = 'Editar usuario';
+    if(editKey) editKey.value = key;
+    document.getElementById('user-nombre').value = u.name||'';
+    document.getElementById('user-key').value    = key;
+    document.getElementById('user-key').disabled = true; // No cambiar el username
+    document.getElementById('user-pass').value   = u.pass||'';
+    document.getElementById('user-rol').value    = u.rol||'cajero';
+    document.getElementById('user-activo').checked = u.activo !== false;
+  } else {
+    if(title) title.textContent = 'Nuevo usuario';
+    if(editKey) editKey.value = '';
+    ['user-nombre','user-key','user-pass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('user-key').disabled = false;
+    document.getElementById('user-rol').value = 'cajero';
+    document.getElementById('user-activo').checked = true;
+  }
+  document.getElementById('user-nombre')?.focus();
+}
+function cerrarFormUsuario() {
+  const f=document.getElementById('user-form'); if(f)f.style.display='none';
+}
+function togglePassVis(id) {
+  const el=document.getElementById(id); if(!el) return;
+  el.type = el.type==='password'?'text':'password';
+}
+function guardarUsuario() {
+  const nombre  = document.getElementById('user-nombre')?.value.trim();
+  const key     = document.getElementById('user-key')?.value.trim().toLowerCase();
+  const pass    = document.getElementById('user-pass')?.value;
+  const rol     = document.getElementById('user-rol')?.value;
+  const activo  = document.getElementById('user-activo')?.checked;
+  const editKey = document.getElementById('user-edit-key')?.value;
+
+  if(!nombre){ toast('El nombre es obligatorio'); return; }
+  if(!key){ toast('El usuario es obligatorio'); return; }
+  if(!pass || pass.length < 4){ toast('La contraseña debe tener al menos 4 caracteres'); return; }
+  if(!/^[a-z0-9_]+$/.test(key)){ toast('El usuario solo puede tener letras minúsculas y números'); return; }
+
+  const usuarios = getUsuarios();
+  if (!editKey && usuarios[key]) { toast('Ya existe un usuario con ese nombre de acceso'); return; }
+  // No permitir eliminar o modificar a Pedro (admin maestro protegido)
+  if(editKey === 'pedro' && rol !== 'admin') { toast('No se puede cambiar el rol de Pedro'); return; }
+
+  usuarios[key] = {
+    pass, name:nombre, color:ROL_COLORS[rol]||'#00D4EC',
+    bg:ROL_BG[rol]||'#1A3D52', screen:ROL_SCREENS[rol]||'s-cajero',
+    rol, activo
+  };
+  saveUsuarios(usuarios);
+  USERS = getUsuarios(); // Actualizar en memoria
+  toast(editKey ? '✓ Usuario actualizado' : '✓ Usuario creado');
+  cerrarFormUsuario();
+  renderUsuarios();
+}
+function toggleUsuarioActivo(key) {
+  if(key==='pedro'){toast('No se puede desactivar al administrador principal');return;}
+  const usuarios = getUsuarios();
+  if(!usuarios[key]) return;
+  usuarios[key].activo = !usuarios[key].activo;
+  saveUsuarios(usuarios);
+  USERS = getUsuarios();
+  renderUsuarios();
+  toast(usuarios[key].activo ? '✓ Usuario activado' : '⚠️ Usuario desactivado');
+}
+function eliminarUsuario(key) {
+  if(key==='pedro'){toast('No se puede eliminar al administrador principal');return;}
+  if(!confirm('¿Eliminar al usuario '+USERS[key]?.name+'?')) return;
+  const usuarios = getUsuarios();
+  delete usuarios[key];
+  saveUsuarios(usuarios);
+  USERS = getUsuarios();
+  renderUsuarios();
+  toast('Usuario eliminado');
+}
+function renderUsuarios() {
+  const lista = document.getElementById('usuarios-lista'); if(!lista) return;
+  const usuarios = getUsuarios();
+  const rolLabel = { admin:'Administrador', cajero:'Cajero', repartidor:'Repartidor' };
+  const rolIcon  = { admin:'⚙️', cajero:'🛒', repartidor:'🛵' };
+  lista.innerHTML = Object.entries(usuarios).map(([key,u])=>`
+    <div style="background:var(--card2);border:1px solid ${u.activo!==false?'var(--bo)':'rgba(255,82,82,.25)'};border-radius:var(--r);padding:14px 16px;margin-bottom:10px;${u.activo===false?'opacity:.6':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:${u.color}22;border:2px solid ${u.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${u.color};">${u.name[0]}</div>
+          <div>
+            <div style="font-size:15px;font-weight:700;">${u.name}</div>
+            <div style="font-size:12px;color:var(--tx2);">${rolIcon[u.rol]} ${rolLabel[u.rol]||u.rol} · @${key}</div>
+          </div>
+        </div>
+        <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${u.activo!==false?'rgba(0,200,120,.15)':'rgba(255,82,82,.15)'};color:${u.activo!==false?'var(--tl)':'#FF8080'};">${u.activo!==false?'Activo':'Inactivo'}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="abrirFormUsuario('${key}')" style="flex:1;padding:9px;background:rgba(0,212,236,.1);border:1px solid var(--bo2);border-radius:var(--rs);color:var(--ac);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">✏️ Editar</button>
+        ${key!=='pedro'?`<button onclick="toggleUsuarioActivo('${key}')" style="flex:1;padding:9px;background:${u.activo!==false?'rgba(255,179,0,.1)':'rgba(0,200,120,.1)'};border:1px solid ${u.activo!==false?'rgba(255,179,0,.25)':'rgba(0,200,120,.25)'};border-radius:var(--rs);color:${u.activo!==false?'var(--am)':'var(--tl)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">${u.activo!==false?'⏸ Desactivar':'▶ Activar'}</button>
+        <button onclick="eliminarUsuario('${key}')" style="padding:9px 12px;background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);border-radius:var(--rs);color:#FF8080;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn);">🗑</button>`:'<span style="font-size:12px;color:var(--tx3);padding:9px;">Admin principal protegido</span>'}
+      </div>
+    </div>`).join('');
 }
 
 // ─── MOTOR DE REPORTES ───────────────────────────────────────
@@ -3035,7 +3161,6 @@ setInterval(() => {
     DB.setPrecios('domicilio', {...DP});
   }
 })();
-buildPinDots();
 </script>
 </body>
 </html>
