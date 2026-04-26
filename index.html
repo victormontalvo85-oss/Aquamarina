@@ -2571,72 +2571,81 @@ function toggleNota(id, btn) {
 }
 
 // ─── QR REAL CON CÁMARA ───────────────────────────────────
-let qrStream = null, qrAnimFrame = null;
+let qrStream = null, qrAnimFrame = null, barcodeDetector = null;
+
 function startQR() {
-  const video = document.getElementById('qr-video');
+  const video  = document.getElementById('qr-video');
   const estado = document.getElementById('qr-estado');
-  const btn = document.getElementById('qr-start-btn');
+  const btn    = document.getElementById('qr-start-btn');
   if(btn) btn.style.display = 'none';
-  if(estado) estado.textContent = 'Iniciando cámara...';
+  if(estado) estado.textContent = '📷 Iniciando cámara...';
+  // Inicializar BarcodeDetector nativo si está disponible (Chrome Android)
+  if(typeof BarcodeDetector !== 'undefined') {
+    try { barcodeDetector = new BarcodeDetector({ formats: ['qr_code','aztec','data_matrix'] }); }
+    catch(e) { barcodeDetector = null; }
+  }
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }
   })
   .then(stream => {
     qrStream = stream;
     video.srcObject = stream;
-    video.setAttribute('playsinline', true);
+    video.setAttribute('playsinline','true');
     video.play();
     if(estado) estado.textContent = '📷 Apunta al código QR del cliente';
-    requestAnimationFrame(scanQRFrame);
+    video.addEventListener('playing', () => setTimeout(scanQRFrame, 300), {once:true});
+    setTimeout(scanQRFrame, 1000); // fallback
   })
   .catch(err => {
-    if(estado) estado.textContent = '⚠️ Sin acceso a cámara';
+    if(estado) estado.textContent = '⚠️ Sin acceso a cámara — permite el permiso en Chrome';
     if(btn){ btn.style.display='block'; btn.textContent='🔄 Reintentar'; }
-    toast('Permite el acceso a la cámara en Chrome');
-    console.warn('Camera error:', err);
+    toast('Activa el permiso de cámara en Chrome');
+    console.warn('[QR]', err);
   });
 }
-function scanQRFrame() {
-  const video = document.getElementById('qr-video');
+
+async function scanQRFrame() {
+  const video  = document.getElementById('qr-video');
   const canvas = document.getElementById('qr-canvas');
-  if (!video || !canvas) return;
-  // Esperar a que el video tenga datos
-  if (video.readyState < 2) {
-    qrAnimFrame = requestAnimationFrame(scanQRFrame); return;
+  if(!video || !qrStream) return;
+  if(video.readyState < 2 || video.videoWidth === 0) {
+    qrAnimFrame = setTimeout(scanQRFrame, 250); return;
   }
-  if (video.videoWidth === 0) {
-    qrAnimFrame = requestAnimationFrame(scanQRFrame); return;
+  // ── BarcodeDetector nativo (más rápido y confiable en Android) ──
+  if(barcodeDetector) {
+    try {
+      const codes = await barcodeDetector.detect(video);
+      if(codes && codes.length > 0 && codes[0].rawValue) {
+        stopQR(); procesarQR(codes[0].rawValue); return;
+      }
+    } catch(e) { barcodeDetector = null; } // Degradar a jsQR
+    qrAnimFrame = setTimeout(scanQRFrame, 250); return;
   }
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
+  // ── jsQR fallback ──
+  if(!canvas) { qrAnimFrame = setTimeout(scanQRFrame, 250); return; }
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  let imageData;
-  try { imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); }
-  catch(e) { qrAnimFrame = requestAnimationFrame(scanQRFrame); return; }
-  // Intentar con ambas inversiones para mejor detección
-  const code = (typeof jsQR !== 'undefined') && (
-    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'dontInvert' }) ||
-    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts:'onlyInvert' })
-  );
-  if (code && code.data) {
-    stopQR();
-    procesarQR(code.data);
-  } else {
-    qrAnimFrame = requestAnimationFrame(scanQRFrame);
-  }
+  try {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if(typeof jsQR !== 'undefined') {
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {inversionAttempts:'attemptBoth'});
+      if(code && code.data) { stopQR(); procesarQR(code.data); return; }
+    }
+  } catch(e) {}
+  qrAnimFrame = setTimeout(scanQRFrame, 250);
 }
+
 function stopQR() {
   try {
     if(qrStream){ qrStream.getTracks().forEach(t=>t.stop()); qrStream=null; }
-    if(qrAnimFrame){ cancelAnimationFrame(qrAnimFrame); qrAnimFrame=null; }
-    const estado = document.getElementById('qr-estado');
-    if(estado) estado.textContent = '';
+    if(qrAnimFrame){ clearTimeout(qrAnimFrame); cancelAnimationFrame(qrAnimFrame); qrAnimFrame=null; }
+    const estado = document.getElementById('qr-estado'); if(estado) estado.textContent='';
     const btn = document.getElementById('qr-start-btn');
     if(btn){ btn.style.display='block'; btn.textContent='📷 Activar cámara y escanear'; }
   } catch(e){}
 }
-function resetQR() { stopQR(); } // Alias para compatibilidad
+function resetQR() { stopQR(); }
 function procesarQR(data) {
   console.log('[QR] Escaneado:', data);
   // Intentar parsear como JSON (QRs generados por la app)
