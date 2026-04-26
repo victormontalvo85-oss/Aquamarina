@@ -2742,6 +2742,13 @@ function procesarQR(data) {
   // Pre-llenar campo de cliente en nuevo pedido
   const npCli = document.getElementById('np-cliente');
   if(npCli) npCli.value = cli.nombre + (cli.direccion ? ' — ' + cli.direccion : '');
+  // Guardar cliente del QR globalmente para que initNuevoPedido lo use
+  window._qrCliente = {
+    nombre: cli.nombre,
+    dir:    cli.direccion || '',
+    tel:    cli.telefono  || '',
+    notas:  clienteDB?.notas || ''
+  };
 
   const ac=document.getElementById('qr-acciones'); if(!ac) return;
   const premioBtn = (clienteDB?.premiosPendientes > 0 && cfg.activo) ?
@@ -3183,9 +3190,22 @@ function initNuevoPedido() {
     tipoPedido = 'e';
     selTipo('e');
   }
-  // Limpiar form
-  const nc=document.getElementById('np-cliente'); if(nc) nc.value='';
-  const nn=document.getElementById('np-notas'); if(nn) nn.value='';
+  // Limpiar form — pero si venimos de QR, restaurar el cliente escaneado
+  const nc=document.getElementById('np-cliente');
+  if(nc) {
+    if(window._qrCliente) {
+      nc.value = window._qrCliente.nombre + (window._qrCliente.dir ? ' — ' + window._qrCliente.dir : '');
+    } else {
+      nc.value = '';
+    }
+  }
+  const nn=document.getElementById('np-notas');
+  if(nn) {
+    if(window._qrCliente?.notas) { nn.value = window._qrCliente.notas; }
+    else { nn.value = ''; }
+  }
+  // Limpiar cliente QR después de usarlo
+  window._qrCliente = null;
   selPagoTipo('ninguno');
   ['np-g20','np-g10','np-g5','np-hielo'].forEach(k=>{const el=document.getElementById('q-'+k);if(el)el.textContent='0';});
 }
@@ -3570,7 +3590,6 @@ function descargarReporte(tipo) {
   if(!d){ toast('Primero genera un reporte'); return; }
 
   if(tipo === 'csv') {
-    // Generar CSV de pedidos
     const header = 'Fecha,Cliente,Tipo,Productos,Repartidor,Total,Estado,Pago\n';
     const rows = d.pedFiltro.map(p=>
       `"${p.fecha}","${p.cliente}","${p.tipo}","${resumenProductos(p.cantidades||p.cantidadesRecogidas)}","${p.repartidor}","${p.total}","${p.estado}","${p.tipoPago||'ninguno'}"`
@@ -3584,55 +3603,187 @@ function descargarReporte(tipo) {
     return;
   }
 
-  // PDF — Generar HTML y abrir ventana de impresión
-  const fechaStr = d.ini.toLocaleDateString('es-MX')+(d.periodo!=='dia'?' al '+d.fin.toLocaleDateString('es-MX'):'');
-  const repRows = d.pedFiltro.map(p=>
-    `<tr><td>${p.fecha}</td><td>${p.cliente}</td><td>${p.tipo==='entrega'?'Entrega':'Recolec.'}</td><td>${resumenProductos(p.cantidades||p.cantidadesRecogidas)}</td><td>${p.repartidor}</td><td style="text-align:right;font-weight:bold;">$${p.total}</td><td>${p.estado}</td></tr>`
+  // ── PDF con gráficas SVG ──────────────────────────────────
+  const fechaStr = d.ini.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'}) +
+    (d.periodo!=='dia' ? ' — ' + d.fin.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'}) : '');
+
+  // Gráfica de barras SVG
+  const barData = [
+    {label:'Local',     val:d.localTotal,  color:'#00C878'},
+    {label:'Domicilio', val:d.domTotal,     color:'#00D4EC'},
+    {label:'Recolec.',  val:d.recolTotal,   color:'#C084FC'},
+  ].filter(b=>b.val>0);
+  const maxBar = Math.max(...barData.map(b=>b.val), 1);
+  const barW = 560, barH = 160, barPad = 60, barGap = 20;
+  const bw = barData.length ? (barW - barPad*2 - barGap*(barData.length-1)) / barData.length : 100;
+  const barsSVG = barData.map((b,i) => {
+    const x = barPad + i*(bw+barGap);
+    const h = Math.max(4, Math.round((b.val/maxBar)*(barH-40)));
+    const y = barH - h - 24;
+    const pct = Math.round(b.val/d.ingresos*100);
+    return `
+      <rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="6" fill="${b.color}" opacity="0.9"/>
+      <text x="${x+bw/2}" y="${y-6}" text-anchor="middle" fill="${b.color}" font-size="12" font-weight="bold">$${b.val.toLocaleString('es-MX')}</text>
+      <text x="${x+bw/2}" y="${barH-8}" text-anchor="middle" fill="#7AAEC8" font-size="11">${b.label} ${pct}%</text>`;
+  }).join('');
+
+  // Gráfica de dona SVG (distribución)
+  function donutSlices(data, cx, cy, r) {
+    const total = data.reduce((s,d)=>s+d.val,0); if(!total) return '';
+    let startAngle = -Math.PI/2;
+    return data.map(d => {
+      const angle = (d.val/total)*2*Math.PI;
+      const x1=cx+r*Math.cos(startAngle), y1=cy+r*Math.sin(startAngle);
+      const x2=cx+r*Math.cos(startAngle+angle), y2=cy+r*Math.sin(startAngle+angle);
+      const large=angle>Math.PI?1:0;
+      const path=`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+      startAngle+=angle;
+      return `<path d="${path}" fill="${d.color}" opacity="0.9"/>`;
+    }).join('');
+  }
+  const donutData=[{val:d.localTotal,color:'#00C878'},{val:d.domTotal,color:'#00D4EC'},{val:d.recolTotal,color:'#C084FC'}].filter(x=>x.val>0);
+  const donutSVG = donutSlices(donutData,90,80,60) +
+    `<circle cx="90" cy="80" r="30" fill="#0D2535"/>
+     <text x="90" y="76" text-anchor="middle" fill="#D0E8F5" font-size="10">Neto</text>
+     <text x="90" y="90" text-anchor="middle" fill="#00D4EC" font-size="13" font-weight="bold">$${d.neto.toLocaleString('es-MX')}</text>`;
+
+  const repRows = d.pedFiltro.map((p,i)=>
+    `<tr style="background:${i%2===0?'#1A3347':'#16304A'}">
+      <td>${p.fecha||''}</td>
+      <td>${p.cliente}</td>
+      <td><span style="background:${p.tipo==='entrega'?'rgba(0,212,236,.2)':'rgba(192,132,252,.2)'};padding:2px 7px;border-radius:10px;font-size:11px;color:${p.tipo==='entrega'?'#00D4EC':'#C084FC'}">${p.tipo==='entrega'?'Entrega':'Recolec.'}</span></td>
+      <td style="font-size:12px;">${resumenProductos(p.cantidades||p.cantidadesRecogidas)}</td>
+      <td>${p.repartidor||''}</td>
+      <td style="text-align:right;font-weight:bold;color:#00C878;">$${p.total||0}</td>
+      <td><span style="background:${p.estado==='entregado'?'rgba(0,200,120,.2)':'rgba(255,179,0,.2)'};padding:2px 7px;border-radius:10px;font-size:11px;color:${p.estado==='entregado'?'#00C878':'#FFB300'}">${p.estado}</span></td>
+    </tr>`
   ).join('');
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>Reporte AquaMarina</title>
+  // Top repartidores
+  const porRep = d.porRep || {};
+  const repRows2 = Object.entries(porRep).sort((a,b)=>b[1].total-a[1].total).map(([rep,info])=>
+    `<tr><td style="font-weight:600;">${rep}</td><td style="text-align:center;">${info.pedidos}</td><td style="text-align:right;color:#00C878;font-weight:bold;">$${info.total.toLocaleString('es-MX')}</td></tr>`
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:#7AAEC8;">Sin entregas en este período</td></tr>';
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Reporte AquaMarina — ${d.titulo}</title>
   <style>
-    body{font-family:'Segoe UI',sans-serif;color:#1a1a2e;padding:20px;max-width:800px;margin:0 auto;}
-    .logo{text-align:center;margin-bottom:16px;}
-    .logo h1{font-size:28px;color:#0a7fa0;margin:0;}
-    .logo p{color:#666;margin:4px 0;}
-    .period{background:#f0f8ff;border-left:4px solid #00D4EC;padding:10px 14px;margin-bottom:20px;border-radius:4px;}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
-    .stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;}
-    .stat .label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;}
-    .stat .val{font-size:22px;font-weight:700;color:#0a7fa0;margin-top:4px;}
-    .stat.total .val{color:#059669;font-size:28px;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#0D2535;color:#D0E8F5;min-height:100vh;}
+    .page{max-width:820px;margin:0 auto;padding:24px;}
+    /* HEADER */
+    .header{background:linear-gradient(135deg,#1A3347,#0D2535);border:1px solid #1E4060;border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}
+    .logo-area h1{font-size:28px;font-weight:800;background:linear-gradient(135deg,#00D4EC,#00C878);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;}
+    .logo-area p{font-size:12px;color:#7AAEC8;margin-top:4px;}
+    .header-right{text-align:right;}
+    .header-right .badge{display:inline-block;background:rgba(0,212,236,.12);border:1px solid rgba(0,212,236,.3);border-radius:20px;padding:4px 14px;font-size:11px;color:#00D4EC;font-weight:700;margin-bottom:6px;}
+    .header-right .fecha{font-size:12px;color:#7AAEC8;}
+    /* STAT GRID */
+    .stat-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;margin-bottom:20px;}
+    .stat{background:#1A3347;border:1px solid #1E4060;border-radius:12px;padding:14px 16px;text-align:center;}
+    .stat.main{background:linear-gradient(135deg,rgba(0,212,236,.15),rgba(0,200,120,.1));border-color:rgba(0,212,236,.4);}
+    .stat-label{font-size:10px;color:#7AAEC8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .stat-val{font-size:22px;font-weight:800;color:#00D4EC;}
+    .stat.main .stat-val{font-size:32px;color:#00C878;}
+    .stat-sub{font-size:10px;color:#7AAEC8;margin-top:4px;}
+    /* CHARTS */
+    .charts{display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:20px;}
+    .chart-card{background:#1A3347;border:1px solid #1E4060;border-radius:12px;padding:16px;}
+    .chart-title{font-size:13px;font-weight:700;color:#7AAEC8;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
+    .donut-legend{margin-top:8px;}
+    .donut-legend div{font-size:11px;color:#7AAEC8;padding:3px 0;display:flex;justify-content:space-between;}
+    .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;}
+    /* TABLES */
+    .section-title{font-size:14px;font-weight:700;color:#7AAEC8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;padding-top:4px;}
     table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;}
-    th{background:#0a7fa0;color:white;padding:8px;text-align:left;}
-    td{padding:7px 8px;border-bottom:1px solid #e2e8f0;}
-    tr:nth-child(even) td{background:#f8fafc;}
-    .footer{text-align:center;color:#999;font-size:11px;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px;}
-    @media print{button{display:none;}}
+    th{background:#0D2535;color:#00D4EC;padding:9px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid rgba(0,212,236,.3);}
+    td{padding:8px 10px;color:#D0E8F5;border-bottom:1px solid rgba(30,64,96,.5);}
+    .footer{text-align:center;color:#3A6080;font-size:11px;padding:20px 0;border-top:1px solid #1E4060;margin-top:8px;}
+    .print-btn{position:fixed;bottom:24px;right:24px;background:linear-gradient(135deg,#00D4EC,#00C878);color:#0D2535;border:none;padding:14px 24px;border-radius:30px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 20px rgba(0,212,236,.4);z-index:100;}
+    @media print{.print-btn{display:none;}body{background:white!important;color:#1a1a2e!important;}.header,.stat,.chart-card{background:#f8fafc!important;border-color:#e2e8f0!important;}.stat-val,.logo-area h1{color:#0a7fa0!important;-webkit-text-fill-color:#0a7fa0!important;}th{background:#0a7fa0!important;}td{color:#1a1a2e!important;}.chart-title,.stat-label,.section-title{color:#666!important;}.header-right .fecha,.stat-sub{color:#666!important;}.footer{color:#999!important;}}
   </style></head><body>
-  <div class="logo">
-    <h1>🌊 AQUAMARINA</h1>
-    <p>Purificadora de Agua — Sistema de Gestión de Ventas</p>
+  <div class="page">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo-area">
+        <h1>🌊 AQUAMARINA</h1>
+        <p>Purificadora de Agua · Sistema de Gestión de Ventas</p>
+      </div>
+      <div class="header-right">
+        <div class="badge">📊 REPORTE OFICIAL</div>
+        <div class="fecha">${d.titulo}</div>
+        <div class="fecha">${fechaStr}</div>
+        <div class="fecha" style="margin-top:4px;">Generado: ${new Date().toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'})}</div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stat-grid">
+      <div class="stat main">
+        <div class="stat-label">💰 Ingresos Netos</div>
+        <div class="stat-val">$${d.neto.toLocaleString('es-MX')}</div>
+        <div class="stat-sub">Ingresos $${d.ingresos.toLocaleString('es-MX')} − Gastos $${d.gastosTotal.toLocaleString('es-MX')}</div>
+      </div>
+      <div class="stat"><div class="stat-label">🛒 Local</div><div class="stat-val" style="font-size:20px;color:#00C878;">$${d.localTotal.toLocaleString('es-MX')}</div></div>
+      <div class="stat"><div class="stat-label">🛵 Domicilio</div><div class="stat-val" style="font-size:20px;">$${d.domTotal.toLocaleString('es-MX')}</div></div>
+      <div class="stat"><div class="stat-label">🔄 Recolec.</div><div class="stat-val" style="font-size:20px;color:#C084FC;">$${d.recolTotal.toLocaleString('es-MX')}</div></div>
+      <div class="stat"><div class="stat-label">📦 Pedidos</div><div class="stat-val" style="font-size:24px;color:#FFB300;">${d.numPedidos}</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-title">📊 Ingresos por canal</div>
+        <svg viewBox="0 0 ${barW} ${barH}" width="100%">
+          <line x1="${barPad}" y1="10" x2="${barPad}" y2="${barH-24}" stroke="#1E4060" stroke-width="1"/>
+          ${barsSVG || '<text x="280" y="80" text-anchor="middle" fill="#3A6080" font-size="14">Sin datos en este período</text>'}
+        </svg>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🥧 Distribución</div>
+        <svg viewBox="0 0 180 160" width="100%">
+          ${donutSVG || '<text x="90" y="80" text-anchor="middle" fill="#3A6080" font-size="12">Sin datos</text>'}
+        </svg>
+        <div class="donut-legend">
+          <div><span><span class="dot" style="background:#00C878"></span>Local</span><span>$${d.localTotal.toLocaleString('es-MX')}</span></div>
+          <div><span><span class="dot" style="background:#00D4EC"></span>Domicilio</span><span>$${d.domTotal.toLocaleString('es-MX')}</span></div>
+          <div><span><span class="dot" style="background:#C084FC"></span>Recolec.</span><span>$${d.recolTotal.toLocaleString('es-MX')}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div class="section-title">📦 Productos vendidos</div>
+    <table>
+      <tr><th>Producto</th><th style="text-align:center;">Cantidad</th><th style="text-align:right;">Total</th><th style="text-align:right;">% del ingreso</th></tr>
+      ${[['Garrafón 20L',d.cant.g20,d.montos.g20],['Garrafón 10L',d.cant.g10,d.montos.g10],['Garrafón 5L',d.cant.g5,d.montos.g5],['Hielo 10kg',d.cant.hielo,d.montos.hielo]]
+        .filter(r=>r[1]>0)
+        .map((r,i)=>`<tr style="background:${i%2===0?'#1A3347':'#16304A'}">
+          <td>${r[0]}</td>
+          <td style="text-align:center;font-weight:600;">${r[1]} uds</td>
+          <td style="text-align:right;font-weight:bold;color:#00C878;">$${r[2].toLocaleString('es-MX')}</td>
+          <td style="text-align:right;color:#7AAEC8;">${d.ingresos>0?Math.round(r[2]/d.ingresos*100)+'%':'—'}</td>
+        </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#3A6080;padding:16px;">Sin ventas en este período</td></tr>'}
+    </table>
+
+    <!-- REPARTIDORES -->
+    <div class="section-title">🛵 Actividad por repartidor</div>
+    <table>
+      <tr><th>Repartidor</th><th style="text-align:center;">Pedidos entregados</th><th style="text-align:right;">Total cobrado</th></tr>
+      ${repRows2}
+    </table>
+
+    <!-- PEDIDOS -->
+    <div class="section-title">📋 Detalle de pedidos (${d.pedFiltro.length})</div>
+    <table>
+      <tr><th>Hora</th><th>Cliente</th><th>Tipo</th><th>Productos</th><th>Repartidor</th><th style="text-align:right;">Total</th><th>Estado</th></tr>
+      ${repRows || '<tr><td colspan="7" style="text-align:center;color:#3A6080;padding:16px;">Sin pedidos en este período</td></tr>'}
+    </table>
+
+    <div class="footer">🌊 AquaMarina App v1.0 · Desarrollado por Victor Montalvo · © 2026</div>
   </div>
-  <div class="period"><strong>${d.titulo}</strong><br><small>${fechaStr}</small></div>
-  <div class="grid">
-    <div class="stat total"><div class="label">Neto Final</div><div class="val">$${d.neto.toLocaleString('es-MX')}</div></div>
-    <div class="stat"><div class="label">Ingresos</div><div class="val">$${d.ingresos.toLocaleString('es-MX')}</div></div>
-    <div class="stat"><div class="label">Gastos</div><div class="val" style="color:#dc2626;">$${d.gastosTotal.toLocaleString('es-MX')}</div></div>
-    <div class="stat"><div class="label">Local</div><div class="val">$${d.localTotal.toLocaleString('es-MX')}</div></div>
-    <div class="stat"><div class="label">Domicilio</div><div class="val">$${d.domTotal.toLocaleString('es-MX')}</div></div>
-    <div class="stat"><div class="label">Recolección</div><div class="val">$${d.recolTotal.toLocaleString('es-MX')}</div></div>
-  </div>
-  <h3 style="color:#0a7fa0;margin-bottom:8px;">Productos vendidos</h3>
-  <table><tr><th>Producto</th><th>Cantidad</th><th style="text-align:right;">Total</th></tr>
-    ${[['Garrafón 20L',d.cant.g20,d.montos.g20],['Garrafón 10L',d.cant.g10,d.montos.g10],['Garrafón 5L',d.cant.g5,d.montos.g5],['Hielo 10kg',d.cant.hielo,d.montos.hielo]].filter(r=>r[1]>0).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="text-align:right;font-weight:bold;">$${r[2].toLocaleString('es-MX')}</td></tr>`).join('')}
-  </table>
-  <h3 style="color:#0a7fa0;margin-bottom:8px;">Detalle de pedidos (${d.pedFiltro.length})</h3>
-  <table><tr><th>Hora</th><th>Cliente</th><th>Tipo</th><th>Productos</th><th>Repartidor</th><th style="text-align:right;">Total</th></tr>
-    ${repRows||'<tr><td colspan="6" style="text-align:center;color:#999;">Sin pedidos</td></tr>'}
-  </table>
-  <div class="footer">Generado el ${new Date().toLocaleString('es-MX')} · AquaMarina App</div>
-  <script>window.onload=()=>{window.print();}<\/script>
+  <button class="print-btn" onclick="window.print()">🖨️ Guardar como PDF</button>
+  <script>setTimeout(()=>{window.print();},800);<\/script>
   </body></html>`;
 
   const w = window.open('','_blank');
