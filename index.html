@@ -429,6 +429,14 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       </div>
       <div id="admin-solicitudes-lista"></div>
     </div>
+    <!-- Cortes pendientes de validación -->
+    <div id="admin-cortes-sec" style="display:none;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:700;color:var(--ac);">📋 Cortes pendientes de validar</span>
+        <span id="admin-cortes-badge" class="badge b-ac" style="font-size:11px;"></span>
+      </div>
+      <div id="admin-cortes-lista"></div>
+    </div>
     <p class="st">Todos los pedidos</p>
     <div id="admin-pedidos-lista" class="card" style="padding:4px 16px;">
       <div class="empty"><div class="ei">📊</div><p>Aún no hay actividad hoy.</p></div>
@@ -676,8 +684,13 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
 
 <!-- ══ CORTE ══ -->
 <div id="s-corte" class="scr">
-  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">Corte de caja</span></div>
+  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">Corte del día</span></div>
   <div class="body">
+
+    <!-- Estado del corte -->
+    <div id="corte-status-bar" style="display:none;margin-bottom:12px;"></div>
+
+    <!-- ── CORTE DE CAJA ── -->
     <p class="st" id="corte-fecha">Resumen del día</p>
     <div class="card" id="corte-detalle">
       <div class="tr">
@@ -692,7 +705,6 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
         <div><span style="color:var(--tx2);">🔄 Recolecciones cobradas</span><br><span style="font-size:11px;color:var(--tx3);">Cobrado por el repartidor</span></div>
         <span id="corte-recol" style="font-weight:700;color:var(--ac);">$0</span>
       </div>
-      <!-- Resumen de lo que debe entregar el repartidor -->
       <div class="tr" style="background:rgba(255,179,0,.08);border-radius:8px;padding:10px 8px;margin:4px 0;">
         <div><span style="color:var(--am);font-weight:700;">💰 Repartidor debe entregar</span><br><span style="font-size:11px;color:var(--tx3);">Domicilios + recolecciones</span></div>
         <span id="corte-rep-entrega" style="font-weight:700;color:var(--am);font-size:18px;">$0</span>
@@ -706,6 +718,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
         <span class="tf" id="corte-total">$0</span>
       </div>
     </div>
+
     <p class="st">Desglose por producto</p>
     <div class="card" id="corte-productos">
       <div class="empty"><div class="ei">🗂</div><p>Sin ventas registradas aún.</p></div>
@@ -714,8 +727,63 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <div id="corte-fiados" style="display:none;"></div>
     <div id="corte-premios" style="display:none;"></div>
     <div id="corte-gastos-sec" style="display:none;"></div>
-    <button class="btn btn-ac" onclick="toast('Generando PDF del corte...')">📄 Exportar PDF</button>
-    <button class="btn btn-out" onclick="toast('Corte enviado al administrador.')">Enviar para validar</button>
+
+    <!-- ── CORTE DE AGUA ── -->
+    <p class="st">💧 Corte de agua</p>
+    <div class="card2" style="margin-bottom:10px;">
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:12px;">
+        Registra la lectura del medidor para calcular el agua consumida vs vendida.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <span class="lbl">Lectura de ayer (inicio)</span>
+          <input class="inp" id="agua-ayer" type="number" placeholder="Litros" style="margin-bottom:0;"
+            oninput="calcularCorteAgua()"/>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Medidor al inicio del día</div>
+        </div>
+        <div>
+          <span class="lbl">Lectura de hoy (fin)</span>
+          <input class="inp" id="agua-hoy" type="number" placeholder="Litros" style="margin-bottom:0;"
+            oninput="calcularCorteAgua()"/>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Medidor al cierre del día</div>
+        </div>
+      </div>
+      <!-- Resultado automático -->
+      <div id="agua-resultado" style="display:none;">
+        <div style="background:var(--bg3);border-radius:var(--rs);padding:12px 14px;margin-bottom:10px;">
+          <div class="tr" style="padding:4px 0;">
+            <span style="color:var(--tx2);font-size:13px;">💧 Total consumido</span>
+            <span id="agua-consumido" style="font-weight:700;color:var(--ac);">0 L</span>
+          </div>
+          <div class="tr" style="padding:4px 0;">
+            <span style="color:var(--tx2);font-size:13px;">🫙 Total vendido</span>
+            <span id="agua-vendido" style="font-weight:700;color:var(--tl);">0 L</span>
+          </div>
+          <div class="tr" style="padding:8px 0;border-top:1px solid var(--bo);margin-top:4px;">
+            <span style="font-weight:700;">📊 Diferencia</span>
+            <span id="agua-diferencia" style="font-weight:700;font-size:16px;">0 L</span>
+          </div>
+          <div id="agua-mensaje" style="font-size:12px;margin-top:8px;padding:8px 10px;border-radius:var(--rs);"></div>
+        </div>
+      </div>
+      <button class="btn btn-tl" style="padding:11px;" onclick="guardarCorteAgua()">💧 Guardar corte de agua</button>
+    </div>
+
+    <!-- Historial de cortes de agua -->
+    <details style="margin-bottom:12px;">
+      <summary style="padding:11px 14px;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rs);cursor:pointer;font-size:13px;font-weight:700;color:var(--tx2);list-style:none;">
+        📅 Historial de cortes de agua ▼
+      </summary>
+      <div style="background:var(--card2);border:1px solid var(--bo);border-top:none;border-radius:0 0 var(--rs) var(--rs);padding:4px 14px 10px;">
+        <div id="agua-historial-lista" style="margin-top:4px;">
+          <div style="padding:10px;font-size:13px;color:var(--tx3);text-align:center;">Sin registros anteriores</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ── BOTONES DE ACCIÓN ── -->
+    <button class="btn btn-ac" onclick="enviarCorteValidacion()" id="btn-enviar-corte">📤 Enviar corte para validación</button>
+    <button class="btn btn-out" onclick="exportarCortePDF()">📄 Exportar PDF del corte</button>
   </div>
 </div>
 
@@ -1184,7 +1252,7 @@ const COL = 'aquamarina'; // Colección principal en Firestore
 
 async function cargarDatosFirebase() {
   if (!fbdb) return;
-  const docs = ['pedidos','ventas','gastos','clientes'];
+  const docs = ['pedidos','ventas','gastos','clientes','cortes'];
   for (const d of docs) {
     try {
       const snap = await fbdb.collection(COL).doc(d).get();
@@ -1193,6 +1261,13 @@ async function cargarDatosFirebase() {
       }
     } catch(e) { console.warn('Error cargando '+d, e); }
   }
+  // Cargar historial de agua (clave diferente)
+  try {
+    const snapAgua = await fbdb.collection(COL).doc('agua').get();
+    if (snapAgua.exists && snapAgua.data()?.data) {
+      localStorage.setItem('am_historial_agua', JSON.stringify(snapAgua.data().data));
+    }
+  } catch(e) { console.warn('Error cargando agua', e); }
   // Cargar precios
   try {
     const snap = await fbdb.collection(COL).doc('precios').get();
@@ -1211,6 +1286,14 @@ function setupListenersFirebase() {
     const remoteTs = snap.data().ts || 0;
     const localTs  = parseInt(localStorage.getItem('am_pedidos_ts')||'0');
     if (remoteTs > localTs) {
+      // Verificar que los datos no sean de un día anterior
+      const hoy = new Date().toISOString().split('T')[0];
+      const ultimoDia = localStorage.getItem('am_ultimo_dia');
+      if (ultimoDia && ultimoDia !== hoy) {
+        // Es un día nuevo — ignorar datos viejos de Firebase
+        console.log('[SYNC] Ignorando pedidos de Firebase — son de un día anterior');
+        return;
+      }
       localStorage.setItem('am_pedidos',    JSON.stringify(snap.data().data));
       localStorage.setItem('am_pedidos_ts', String(remoteTs));
       if (CU) refreshAll();
@@ -1435,7 +1518,7 @@ function doLogin() {
   if (!u) { toast('Escribe tu usuario'); return; }
   if (!p) { toast('Escribe tu contraseña'); return; }
   const user = USERS[u];
-  if (user && user.pass === p && user.activo !== false) {
+  if (user && user.pass.toLowerCase() === p.toLowerCase() && user.activo !== false) {
     CU = { ...user, username: u };
     if (CU.rol === 'repartidor') PRESENCIA.marcarOnline(CU.name);
     // Guardar sesión para auto-login
@@ -1686,7 +1769,6 @@ function renderRepartidor() {
 function renderAdmin() {
   const pedidos = DB.get();
   const ventas  = DB.getVentas();
-  // SOLO ventas en local — los domicilios ya están en pedidos
   const localTotal  = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
   const domTotal    = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
   const recolTotal  = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
@@ -1694,6 +1776,7 @@ function renderAdmin() {
   const ts=document.getElementById('admin-total'); if(ts) ts.textContent='$'+total;
   const ps=document.getElementById('admin-pedidos'); if(ps) ps.textContent=pedidos.length;
   renderSolicitudes();
+  renderCortesAdmin();
   const lista=document.getElementById('admin-pedidos-lista');
   if(!lista) return;
   if(pedidos.length===0){lista.innerHTML='<div class="empty"><div class="ei">📊</div><p>Aún no hay actividad hoy.</p></div>';return;}
@@ -1716,6 +1799,8 @@ function renderDomingo() {
 }
 
 function renderCorte() {
+  renderCorteStatus();
+  renderHistorialAgua(); // Cargar historial de agua
   const pedidos = DB.get();
   const ventas = DB.getVentas();
   const localTotal    = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
@@ -1913,6 +1998,221 @@ function pedidoRowHTML(p, ctx) {
     </div>
   </div>`;
 }
+
+// ─── CORTE DE CAJA — VALIDACIÓN ──────────────────────────
+const DBcortes = {
+  get()  { return JSON.parse(localStorage.getItem('am_cortes')||'[]'); },
+  set(d) {
+    localStorage.setItem('am_cortes', JSON.stringify(d));
+    if(fbdb) fbdb.collection(COL).doc('cortes').set({data:d, ts:Date.now()}).catch(()=>{});
+    window.dispatchEvent(new Event('am_update'));
+  }
+};
+
+function enviarCorteValidacion() {
+  const hoy    = new Date().toISOString().split('T')[0];
+  const cortes = DBcortes.get();
+  if(cortes.find(c=>c.fecha===hoy&&c.estado!=='rechazado')) {
+    toast('Ya enviaste el corte de hoy — espera que Pedro lo valide'); return;
+  }
+  const pedidos  = DB.get();
+  const ventas   = DB.getVentas();
+  const gastos   = DBgastos ? DBgastos.get() : [];
+  const localTotal   = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
+  const domTotal     = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal   = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const gastosTotal  = gastos.reduce((s,g)=>s+g.monto,0);
+  const total        = localTotal + domTotal + recolTotal;
+  const agua         = JSON.parse(localStorage.getItem('am_agua_hoy')||'null');
+
+  const corte = {
+    id: genId(),
+    fecha: hoy,
+    hora: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
+    enviadoPor: CU?.name || 'Cajero',
+    estado: 'pendiente',
+    datos: { localTotal, domTotal, recolTotal, gastosTotal, total, numPedidos: pedidos.length },
+    agua: agua || null,
+    timestamp: Date.now()
+  };
+  cortes.push(corte);
+  DBcortes.set(cortes);
+  toast('✓ Corte enviado a Pedro para validación');
+  renderCorteStatus();
+  refreshAll();
+}
+
+function renderCorteStatus() {
+  const hoy    = new Date().toISOString().split('T')[0];
+  const cortes = DBcortes.get();
+  const corteHoy = cortes.find(c=>c.fecha===hoy);
+  const bar = document.getElementById('corte-status-bar');
+  const btn = document.getElementById('btn-enviar-corte');
+  if(!bar) return;
+  if(!corteHoy) {
+    bar.style.display = 'none';
+    if(btn) { btn.style.display='block'; btn.textContent='📤 Enviar corte para validación'; }
+    return;
+  }
+  bar.style.display = 'block';
+  const configs = {
+    pendiente:  { bg:'rgba(255,179,0,.12)',  border:'rgba(255,179,0,.3)',  color:'var(--am)',  icon:'⏳', texto:'Corte enviado — pendiente de validación por Pedro' },
+    validado:   { bg:'rgba(0,200,120,.12)',  border:'rgba(0,200,120,.3)', color:'var(--tl)',  icon:'✅', texto:'Corte validado por Pedro ✓' },
+    rechazado:  { bg:'rgba(255,82,82,.12)',  border:'rgba(255,82,82,.3)', color:'#FF8080',    icon:'❌', texto:'Corte rechazado — revisa y vuelve a enviar' },
+  };
+  const c = configs[corteHoy.estado] || configs.pendiente;
+  bar.innerHTML = `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:22px;">${c.icon}</span>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:${c.color};">${c.texto}</div>
+      <div style="font-size:11px;color:var(--tx2);margin-top:2px;">Enviado el ${corteHoy.fecha} a las ${corteHoy.hora} por ${corteHoy.enviadoPor}</div>
+      ${corteHoy.notaAdmin ? `<div style="font-size:11px;color:var(--tx3);margin-top:3px;">Nota de Pedro: "${corteHoy.notaAdmin}"</div>` : ''}
+    </div>
+  </div>`;
+  // Mostrar u ocultar botón de enviar
+  if(btn) {
+    btn.style.display = corteHoy.estado==='rechazado' ? 'block' : 'none';
+    if(corteHoy.estado==='rechazado') btn.textContent = '📤 Volver a enviar corte';
+  }
+}
+
+// ─── ADMIN — VALIDAR CORTES ──────────────────────────────
+function renderCortesAdmin() {
+  const cortes  = DBcortes.get().filter(c=>c.estado==='pendiente');
+  const sec     = document.getElementById('admin-cortes-sec');
+  const lista   = document.getElementById('admin-cortes-lista');
+  const badge   = document.getElementById('admin-cortes-badge');
+  if(!sec||!lista) return;
+  if(cortes.length===0){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  if(badge) badge.textContent = cortes.length + ' pendiente'+(cortes.length>1?'s':'');
+  lista.innerHTML = cortes.map(c=>`
+    <div style="background:rgba(0,212,236,.06);border:1px solid rgba(0,212,236,.2);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;color:var(--ac);margin-bottom:6px;">📋 Corte del ${c.fecha} — ${c.enviadoPor}</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:4px;">🛒 Local: <b>$${c.datos.localTotal}</b> · 🛵 Dom: <b>$${c.datos.domTotal}</b> · 🔄 Recol: <b>$${c.datos.recolTotal}</b></div>
+      <div style="font-size:14px;font-weight:700;color:var(--tl);margin-bottom:8px;">💵 Total: $${c.datos.total} · ${c.datos.numPedidos} pedidos</div>
+      ${c.agua ? `<div style="font-size:12px;color:var(--ac);margin-bottom:8px;">💧 Agua — Consumido: ${c.agua.consumido}L · Vendido: ${c.agua.vendido}L · Diferencia: <b style="color:${Math.abs(c.agua.diferencia)>50?'var(--re)':'var(--tl)'};">${c.agua.diferencia>0?'+':''}${c.agua.diferencia}L</b></div>` : ''}
+      <input class="inp" id="nota-corte-${c.id}" placeholder="Nota opcional para el cajero..." style="margin-bottom:8px;font-size:13px;"/>
+      <div style="display:flex;gap:8px;">
+        <button onclick="accionCorte('${c.id}','validado')" style="flex:1;padding:10px;background:rgba(0,200,120,.2);border:1px solid rgba(0,200,120,.35);border-radius:var(--rs);color:var(--tl);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fn);">✅ Validar</button>
+        <button onclick="accionCorte('${c.id}','rechazado')" style="flex:1;padding:10px;background:rgba(255,82,82,.15);border:1px solid rgba(255,82,82,.3);border-radius:var(--rs);color:#FF8080;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fn);">❌ Rechazar</button>
+      </div>
+    </div>`).join('');
+}
+
+function accionCorte(id, accion) {
+  const cortes = DBcortes.get();
+  const idx    = cortes.findIndex(c=>c.id===id); if(idx<0) return;
+  const nota   = document.getElementById('nota-corte-'+id)?.value || '';
+  cortes[idx].estado     = accion;
+  cortes[idx].notaAdmin  = nota;
+  cortes[idx].validadoTs = Date.now();
+  DBcortes.set(cortes);
+  toast(accion==='validado' ? '✅ Corte validado — se notificó al cajero' : '❌ Corte rechazado');
+  renderCortesAdmin();
+  refreshAll();
+}
+
+// ─── CORTE DE AGUA ───────────────────────────────────────
+function calcularCorteAgua() {
+  const ayer = parseFloat(document.getElementById('agua-ayer')?.value||0)||0;
+  const hoy  = parseFloat(document.getElementById('agua-hoy')?.value||0)||0;
+  const res  = document.getElementById('agua-resultado');
+  if(!ayer || !hoy || hoy <= ayer) { if(res) res.style.display='none'; return; }
+  if(res) res.style.display='block';
+
+  const consumido = Math.round(hoy - ayer);
+  // Calcular litros vendidos del día
+  const pedidos = DB.get();
+  const ventas  = DB.getVentas();
+  const allTx   = [...ventas.filter(v=>v.tipo_venta==='local'), ...pedidos.filter(p=>p.estado==='entregado')];
+  const cant    = {g20:0, g10:0, g5:0};
+  allTx.forEach(v=>{
+    const c = v.cantidades||{};
+    cant.g20+=c.g20||0; cant.g10+=c.g10||0; cant.g5+=c.g5||0;
+  });
+  const vendido    = cant.g20*20 + cant.g10*10 + cant.g5*5;
+  const diferencia = consumido - vendido;
+  const pctDif     = vendido>0 ? Math.abs(Math.round(diferencia/vendido*100)) : 0;
+
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('agua-consumido',  consumido+'L');
+  set('agua-vendido',    vendido+'L');
+
+  const difEl = document.getElementById('agua-diferencia');
+  const msgEl = document.getElementById('agua-mensaje');
+  if(difEl) {
+    difEl.textContent = (diferencia>0?'+':'')+diferencia+'L';
+    difEl.style.color = Math.abs(diferencia)>100 ? 'var(--re)' : Math.abs(diferencia)>30 ? 'var(--am)' : 'var(--tl)';
+  }
+  if(msgEl) {
+    if(Math.abs(diferencia)<=10) {
+      msgEl.style.background='rgba(0,200,120,.1)'; msgEl.style.color='var(--tl)';
+      msgEl.textContent='✅ Todo cuadra perfecto — diferencia mínima';
+    } else if(Math.abs(diferencia)<=50) {
+      msgEl.style.background='rgba(255,179,0,.1)'; msgEl.style.color='var(--am)';
+      msgEl.textContent=`⚠️ Diferencia de ${Math.abs(diferencia)}L (${pctDif}%) — revisar con el equipo`;
+    } else {
+      msgEl.style.background='rgba(255,82,82,.1)'; msgEl.style.color='#FF8080';
+      msgEl.textContent=`🚨 Diferencia de ${Math.abs(diferencia)}L (${pctDif}%) — requiere investigación`;
+    }
+  }
+  // Guardar en localStorage para adjuntar al corte
+  window._corteAgua = { ayer, hoy, consumido, vendido, diferencia, cant };
+}
+
+function guardarCorteAgua() {
+  if(!window._corteAgua) { toast('Ingresa las lecturas del medidor primero'); return; }
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const registro = { ...window._corteAgua, fecha: hoyStr, timestamp: Date.now() };
+  localStorage.setItem('am_agua_hoy', JSON.stringify(registro));
+
+  // Guardar en historial de agua
+  const histAgua = JSON.parse(localStorage.getItem('am_historial_agua')||'[]');
+  const yaExiste = histAgua.findIndex(a => a.fecha === hoyStr);
+  if(yaExiste >= 0) histAgua[yaExiste] = registro; // Actualizar si ya existe
+  else histAgua.unshift(registro);
+  const recientes = histAgua.slice(0, 90); // Máx 90 días
+  localStorage.setItem('am_historial_agua', JSON.stringify(recientes));
+  // Sincronizar con Firebase
+  if(fbdb) fbdb.collection(COL).doc('agua').set({ data: recientes, ts: Date.now() }).catch(()=>{});
+
+  toast('✓ Corte de agua guardado');
+  renderHistorialAgua();
+}
+
+function renderHistorialAgua() {
+  const lista = document.getElementById('agua-historial-lista');
+  if(!lista) return;
+  const histAgua = JSON.parse(localStorage.getItem('am_historial_agua')||'[]');
+  if(histAgua.length === 0) {
+    lista.innerHTML = '<div style="padding:10px;font-size:13px;color:var(--tx3);text-align:center;">Sin registros anteriores</div>';
+    return;
+  }
+  lista.innerHTML = histAgua.slice(0,10).map(a => {
+    const difColor = Math.abs(a.diferencia) > 50 ? 'var(--re)' : Math.abs(a.diferencia) > 10 ? 'var(--am)' : 'var(--tl)';
+    const difIcon  = Math.abs(a.diferencia) > 50 ? '🚨' : Math.abs(a.diferencia) > 10 ? '⚠️' : '✅';
+    const fecha    = new Date(a.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bo);">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${fecha}</div>
+        <div style="font-size:11px;color:var(--tx2);">Consumido: ${a.consumido}L · Vendido: ${a.vendido}L</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:14px;font-weight:700;color:${difColor};">${difIcon} ${a.diferencia>0?'+':''}${a.diferencia}L</div>
+        <div style="font-size:10px;color:var(--tx3);">diferencia</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Actualizar renderAdmin para mostrar cortes pendientes
+const _origRenderAdmin = renderAdmin;
+// Hook renderAdmin to also show pending cortes
+const _hookRenderAdmin = function() {
+  _origRenderAdmin();
+  renderCortesAdmin();
+};
 
 // ─── SOLICITUDES DE ELIMINACIÓN ──────────────────────────
 function cancelarSolicitud(id) {
@@ -3357,26 +3657,51 @@ function renderUsuarios() {
 function archivarDiaAnterior() {
   const hoy = new Date().toISOString().split('T')[0];
   const ultimoDia = localStorage.getItem('am_ultimo_dia');
-  if (ultimoDia && ultimoDia !== hoy) {
-    // Es un día nuevo — archivar los datos del día anterior
+
+  // Caso 1: nunca se usó la app antes — guardar la fecha y salir
+  if (!ultimoDia) {
+    localStorage.setItem('am_ultimo_dia', hoy);
+    return;
+  }
+
+  // Caso 2: es un día nuevo → archivar y limpiar
+  if (ultimoDia !== hoy) {
     const pedidos = DB.get();
     const ventas  = DB.getVentas();
     const gastos  = DBgastos ? DBgastos.get() : [];
+
     if (pedidos.length > 0 || ventas.length > 0) {
       const archivo = JSON.parse(localStorage.getItem('am_historial') || '[]');
-      archivo.push({ fecha: ultimoDia, pedidos, ventas, gastos, archivedAt: Date.now() });
-      // Guardar máximo 90 días de historial
-      const recientes = archivo.slice(-90);
-      localStorage.setItem('am_historial', JSON.stringify(recientes));
-      // Sincronizar historial con Firebase
-      if (fbdb) fbdb.collection(COL).doc('historial').set({ data: recientes, ts: Date.now() }).catch(()=>{});
+      // No archivar si ya existe ese día
+      if (!archivo.find(d => d.fecha === ultimoDia)) {
+        archivo.push({ fecha: ultimoDia, pedidos, ventas, gastos, archivedAt: Date.now() });
+        const recientes = archivo.slice(-90);
+        localStorage.setItem('am_historial', JSON.stringify(recientes));
+        if (fbdb) fbdb.collection(COL).doc('historial').set({ data: recientes, ts: Date.now() }).catch(()=>{});
+      }
     }
-    // Limpiar datos del día para el nuevo día
-    localStorage.setItem('am_pedidos', '[]');
-    localStorage.setItem('am_ventas', '[]');
-    localStorage.setItem('am_gastos', '[]');
+
+    // Limpiar datos del día actual (local y Firebase)
+    limpiarDatosDia();
+    localStorage.setItem('am_ultimo_dia', hoy);
+    console.log('[RESET] Día nuevo — datos limpiados:', ultimoDia, '→', hoy);
   }
-  localStorage.setItem('am_ultimo_dia', hoy);
+}
+
+// Limpiar pedidos/ventas/gastos del día (local + Firebase)
+function limpiarDatosDia() {
+  localStorage.setItem('am_pedidos', '[]');
+  localStorage.setItem('am_ventas', '[]');
+  localStorage.setItem('am_gastos', '[]');
+  localStorage.setItem('am_pedidos_ts', String(Date.now()));
+  localStorage.setItem('am_ventas_ts', String(Date.now()));
+  localStorage.setItem('am_gastos_ts', String(Date.now()));
+  if (fbdb) {
+    const ts = Date.now();
+    fbdb.collection(COL).doc('pedidos').set({ data: [], ts }).catch(()=>{});
+    fbdb.collection(COL).doc('ventas').set({  data: [], ts }).catch(()=>{});
+    fbdb.collection(COL).doc('gastos').set({  data: [], ts }).catch(()=>{});
+  }
 }
 
 // Obtener todos los datos (hoy + historial) para un rango de fechas
@@ -4157,6 +4482,27 @@ setInterval(() => {
 // Auto-login: si hay sesión guardada, entrar directo sin pedir contraseña
 (function autoLogin() {
   archivarDiaAnterior();
+
+  // Detectar y limpiar pedidos con timestamp de días anteriores (datos de prueba viejos)
+  const hoyMs = new Date(); hoyMs.setHours(0,0,0,0);
+  const pedidos = DB.get();
+  if (pedidos.length > 0) {
+    const hayViejos = pedidos.some(p => p.timestamp && p.timestamp < hoyMs.getTime());
+    const sinTimestamp = pedidos.filter(p => !p.timestamp);
+    if (hayViejos || sinTimestamp.length > 0) {
+      console.log('[RESET] Pedidos de días anteriores detectados — limpiando automáticamente');
+      const ventas = DB.getVentas();
+      const gastos = DBgastos ? DBgastos.get() : [];
+      const ayerStr = new Date(hoyMs.getTime()-86400000).toISOString().split('T')[0];
+      const archivo = JSON.parse(localStorage.getItem('am_historial')||'[]');
+      if (!archivo.find(d=>d.fecha===ayerStr)) {
+        archivo.push({ fecha: ayerStr, pedidos, ventas, gastos, archivedAt: Date.now() });
+        localStorage.setItem('am_historial', JSON.stringify(archivo.slice(-90)));
+      }
+      limpiarDatosDia();
+    }
+  }
+
   // Esperar a que el DOM esté completamente listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
