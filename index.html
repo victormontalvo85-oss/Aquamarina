@@ -362,7 +362,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <button class="tab" onclick="go('s-nueva-venta')"><span class="ti">🛒</span>Vender</button>
     <button class="tab" onclick="go('s-nuevo-pedido')"><span class="ti">➕</span>Pedido</button>
     <button class="tab" onclick="go('s-cobrar-caja')"><span class="ti">💳</span>Cobrar</button>
-    <button class="tab" onclick="go('s-qr','cajero')"><span class="ti">📷</span>QR</button>
+    <button class="tab" onclick="go('s-corte')"><span class="ti">🗂</span>Corte</button>
     <button class="tab" onclick="openDrawer('cajero')"><span class="ti">☰</span>Más</button>
   </div>
 </div>
@@ -930,8 +930,10 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
           <div class="tr" style="padding-top:8px;border-top:1px solid var(--bo);"><span style="font-weight:700;">Total del día</span><span id="d-corte-total" class="tf">$0</span></div>
         </div>
         <div id="d-corte-productos" class="card" style="padding:6px 14px;margin-bottom:8px;"></div>
-        <button class="btn btn-ac" style="font-size:14px;padding:12px;" onclick="toast('Generando PDF...')">📄 Exportar PDF</button>
-        <button class="btn btn-out" style="font-size:14px;padding:10px;" onclick="toast('Enviado al admin')">Enviar para validar</button>
+        <!-- Estado del corte en el drawer -->
+        <div id="d-corte-status" style="margin-bottom:8px;"></div>
+        <button class="btn btn-ac" style="font-size:14px;padding:12px;" onclick="closeDrawer();go('s-corte')">🗂 Ver corte completo</button>
+        <button class="btn btn-out" id="btn-drawer-enviar-corte" style="font-size:14px;padding:10px;" onclick="enviarCorteValidacion();closeDrawer()">📤 Enviar corte para validación</button>
       </div>
     </div>
 
@@ -1692,7 +1694,18 @@ function refreshAll() {
 }
 
 function renderCajero() {
-  const pedidos = DB.get();
+  const todosLos = DB.get();
+  const hoyMs = new Date(); hoyMs.setHours(0,0,0,0);
+  // SOLO mostrar pedidos de hoy — filtrar por timestamp
+  const pedidos = todosLos.filter(p => {
+    if(!p.timestamp) return true; // sin timestamp: incluir (compatibilidad)
+    return p.timestamp >= hoyMs.getTime();
+  });
+  // Si hay pedidos viejos, limpiarlos silenciosamente
+  if(pedidos.length < todosLos.length) {
+    DB.set(pedidos);
+    return; // renderCajero se llamará de nuevo por el sync
+  }
   const ventas = DB.getVentas();
   const localTotal = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
   const domTotal   = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
@@ -1741,7 +1754,8 @@ function renderCajero() {
 
 function renderRepartidor() {
   if (!CU) return;
-  const todosPedidos = DB.get();
+  const hoyMs = new Date(); hoyMs.setHours(0,0,0,0);
+  const todosPedidos = DB.get().filter(p => !p.timestamp || p.timestamp >= hoyMs.getTime());
   const misPedidos = CU.rol === 'repartidor'
     ? todosPedidos.filter(p => p.repartidor === CU.name)
     : todosPedidos;
@@ -1767,7 +1781,8 @@ function renderRepartidor() {
 }
 
 function renderAdmin() {
-  const pedidos = DB.get();
+  const hoyMs = new Date(); hoyMs.setHours(0,0,0,0);
+  const pedidos = DB.get().filter(p => !p.timestamp || p.timestamp >= hoyMs.getTime());
   const ventas  = DB.getVentas();
   const localTotal  = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
   const domTotal    = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
@@ -2046,34 +2061,47 @@ function renderCorteStatus() {
   const hoy    = new Date().toISOString().split('T')[0];
   const cortes = DBcortes.get();
   const corteHoy = cortes.find(c=>c.fecha===hoy);
-  const bar = document.getElementById('corte-status-bar');
-  const btn = document.getElementById('btn-enviar-corte');
-  if(!bar) return;
-  if(!corteHoy) {
-    bar.style.display = 'none';
-    if(btn) { btn.style.display='block'; btn.textContent='📤 Enviar corte para validación'; }
-    return;
-  }
-  bar.style.display = 'block';
+
   const configs = {
-    pendiente:  { bg:'rgba(255,179,0,.12)',  border:'rgba(255,179,0,.3)',  color:'var(--am)',  icon:'⏳', texto:'Corte enviado — pendiente de validación por Pedro' },
+    pendiente:  { bg:'rgba(255,179,0,.12)',  border:'rgba(255,179,0,.3)',  color:'var(--am)',  icon:'⏳', texto:'Enviado — pendiente de validación por Pedro' },
     validado:   { bg:'rgba(0,200,120,.12)',  border:'rgba(0,200,120,.3)', color:'var(--tl)',  icon:'✅', texto:'Corte validado por Pedro ✓' },
-    rechazado:  { bg:'rgba(255,82,82,.12)',  border:'rgba(255,82,82,.3)', color:'#FF8080',    icon:'❌', texto:'Corte rechazado — revisa y vuelve a enviar' },
+    rechazado:  { bg:'rgba(255,82,82,.12)',  border:'rgba(255,82,82,.3)', color:'#FF8080',    icon:'❌', texto:'Rechazado — revisa y vuelve a enviar' },
   };
-  const c = configs[corteHoy.estado] || configs.pendiente;
-  bar.innerHTML = `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;gap:10px;">
-    <span style="font-size:22px;">${c.icon}</span>
-    <div>
-      <div style="font-size:14px;font-weight:700;color:${c.color};">${c.texto}</div>
-      <div style="font-size:11px;color:var(--tx2);margin-top:2px;">Enviado el ${corteHoy.fecha} a las ${corteHoy.hora} por ${corteHoy.enviadoPor}</div>
-      ${corteHoy.notaAdmin ? `<div style="font-size:11px;color:var(--tx3);margin-top:3px;">Nota de Pedro: "${corteHoy.notaAdmin}"</div>` : ''}
-    </div>
-  </div>`;
-  // Mostrar u ocultar botón de enviar
-  if(btn) {
-    btn.style.display = corteHoy.estado==='rechazado' ? 'block' : 'none';
-    if(corteHoy.estado==='rechazado') btn.textContent = '📤 Volver a enviar corte';
-  }
+
+  // Función para generar el HTML del status
+  const statusHTML = (mini=false) => {
+    if(!corteHoy) return '';
+    const c = configs[corteHoy.estado] || configs.pendiente;
+    return `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:var(--rs);padding:${mini?'8px 10px':'12px 14px'};display:flex;align-items:center;gap:8px;">
+      <span style="font-size:${mini?'18px':'22px'};">${c.icon}</span>
+      <div>
+        <div style="font-size:${mini?'12px':'14px'};font-weight:700;color:${c.color};">${c.texto}</div>
+        ${!mini?`<div style="font-size:11px;color:var(--tx2);margin-top:2px;">Enviado el ${corteHoy.fecha} a las ${corteHoy.hora} por ${corteHoy.enviadoPor}</div>`:''}
+        ${corteHoy.notaAdmin ? `<div style="font-size:11px;color:var(--tx3);margin-top:2px;">Pedro: "${corteHoy.notaAdmin}"</div>` : ''}
+      </div>
+    </div>`;
+  };
+
+  // Actualizar barra en s-corte
+  const bar = document.getElementById('corte-status-bar');
+  if(bar) { bar.style.display=corteHoy?'block':'none'; bar.innerHTML=statusHTML(false); }
+
+  // Actualizar status en drawer
+  const dBar = document.getElementById('d-corte-status');
+  if(dBar) { dBar.style.display=corteHoy?'block':'none'; dBar.innerHTML=statusHTML(true); }
+
+  // Mostrar/ocultar botones de enviar
+  const yaValidado = corteHoy?.estado === 'validado';
+  const puedeEnviar = !corteHoy || corteHoy.estado === 'rechazado';
+
+  ['btn-enviar-corte','btn-drawer-enviar-corte'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.style.display = yaValidado ? 'none' : 'block';
+    btn.textContent = corteHoy?.estado==='rechazado' ? '📤 Volver a enviar corte' : '📤 Enviar corte para validación';
+    btn.disabled = !puedeEnviar;
+    btn.style.opacity = !puedeEnviar ? '0.5' : '1';
+  });
 }
 
 // ─── ADMIN — VALIDAR CORTES ──────────────────────────────
@@ -3103,6 +3131,7 @@ function toggleDrawerSec(id) {
   }
 }
 function renderDrawerCorte() {
+  renderCorteStatus(); // Actualizar estado de validación en el drawer
   const pedidos=DB.get(), ventas=DB.getVentas();
   const localTotal=ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
   const domTotal=pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
