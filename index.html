@@ -335,10 +335,10 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
     <!-- Estado de repartidores en línea -->
     <div id="cajero-rep-status" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
     <div class="sg">
-      <div class="sc"><div class="sl">Vendido hoy</div><div class="sv" style="color:var(--tl);" id="cajero-total">$0</div></div>
-      <div class="sc"><div class="sl">Pedidos activos</div><div class="sv" style="color:var(--ac);" id="cajero-activos">0</div></div>
-      <div class="sc"><div class="sl">Entregados</div><div class="sv" style="color:var(--tl);" id="cajero-entregados">0</div></div>
-      <div class="sc"><div class="sl">Sin pagar</div><div class="sv" style="color:var(--am);" id="cajero-pendientes">0</div></div>
+      <div class="sc"><div class="sl">💵 Vendido hoy</div><div class="sv" style="color:var(--tl);" id="cajero-total">$0</div></div>
+      <div class="sc"><div class="sl">📋 Pedidos activos</div><div class="sv" style="color:var(--ac);" id="cajero-activos">0</div></div>
+      <div class="sc"><div class="sl">✅ Entregados</div><div class="sv" style="color:var(--tl);" id="cajero-entregados">0</div></div>
+      <div class="sc"><div class="sl">⏳ Sin pagar</div><div class="sv" style="color:var(--am);" id="cajero-pendientes">0</div></div>
     </div>
     <!-- #2: QR en pantalla principal cajero -->
     <div style="display:flex;gap:10px;margin-bottom:14px;">
@@ -684,9 +684,13 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
 
 <!-- ══ CORTE ══ -->
 <div id="s-corte" class="scr">
-  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;">Corte del día</span></div>
+  <div class="top"><button class="btn-back" onclick="gb()">← Regresar</button><span class="top-title" style="text-align:right;" id="corte-screen-title">Corte del día</span></div>
   <div class="body">
 
+    <!-- Info rápida -->
+    <div class="alt alt-b" style="font-size:12px;margin-bottom:10px;">
+      💡 Al terminar el día: 1) Registra el corte de agua · 2) Toca "Enviar corte" · 3) Pedro lo valida
+    </div>
     <!-- Estado del corte -->
     <div id="corte-status-bar" style="display:none;margin-bottom:12px;"></div>
 
@@ -736,16 +740,16 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div>
-          <span class="lbl">Lectura de ayer (inicio)</span>
-          <input class="inp" id="agua-ayer" type="number" placeholder="Litros" style="margin-bottom:0;"
+          <span class="lbl">📖 Lectura de AYER al cerrar el día</span>
+          <input class="inp" id="agua-ayer" type="number" placeholder="Ej: 12450" style="margin-bottom:0;"
             oninput="calcularCorteAgua()"/>
-          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Medidor al inicio del día</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Ej: 12,450 — número del medidor ayer</div>
         </div>
         <div>
-          <span class="lbl">Lectura de hoy (fin)</span>
-          <input class="inp" id="agua-hoy" type="number" placeholder="Litros" style="margin-bottom:0;"
+          <span class="lbl">📖 Lectura de HOY al cerrar el día</span>
+          <input class="inp" id="agua-hoy" type="number" placeholder="Ej: 12780" style="margin-bottom:0;"
             oninput="calcularCorteAgua()"/>
-          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Medidor al cierre del día</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:3px;">Ej: 12,780 — número del medidor hoy</div>
         </div>
       </div>
       <!-- Resultado automático -->
@@ -783,7 +787,7 @@ input:checked+.sls:before{background:#fff;transform:translateX(21px);}
 
     <!-- ── BOTONES DE ACCIÓN ── -->
     <button class="btn btn-ac" onclick="enviarCorteValidacion()" id="btn-enviar-corte">📤 Enviar corte para validación</button>
-    <button class="btn btn-out" onclick="exportarCortePDF()">📄 Exportar PDF del corte</button>
+    <button class="btn btn-out" onclick="exportarCortePDF()" style="background:rgba(0,200,120,.12);border-color:rgba(0,200,120,.3);color:var(--tl);">📄 Exportar PDF del corte</button>
   </div>
 </div>
 
@@ -1815,7 +1819,20 @@ function renderDomingo() {
 
 function renderCorte() {
   renderCorteStatus();
-  renderHistorialAgua(); // Cargar historial de agua
+  renderHistorialAgua();
+  // Título dinámico con la fecha
+  const titleEl = document.getElementById('corte-screen-title');
+  if(titleEl) titleEl.textContent = 'Corte — ' + new Date().toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+  // Restaurar lecturas de agua si ya se guardaron hoy
+  const aguaGuardada = JSON.parse(localStorage.getItem('am_agua_hoy')||'null');
+  const hoyStr = new Date().toISOString().split('T')[0];
+  if(aguaGuardada && aguaGuardada.fecha === hoyStr) {
+    const ayerEl = document.getElementById('agua-ayer');
+    const hoyEl  = document.getElementById('agua-hoy');
+    if(ayerEl && !ayerEl.value) ayerEl.value = aguaGuardada.ayer || '';
+    if(hoyEl  && !hoyEl.value)  hoyEl.value  = aguaGuardada.hoy  || '';
+    setTimeout(calcularCorteAgua, 150);
+  }
   const pedidos = DB.get();
   const ventas = DB.getVentas();
   const localTotal    = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
@@ -2014,6 +2031,106 @@ function pedidoRowHTML(p, ctx) {
   </div>`;
 }
 
+function exportarCortePDF() {
+  const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const pedidos   = DB.get();
+  const ventas    = DB.getVentas();
+  const gastos    = DBgastos ? DBgastos.get() : [];
+  const localTotal  = ventas.filter(v=>v.tipo_venta==='local').reduce((s,v)=>s+v.total,0);
+  const domTotal    = pedidos.filter(p=>p.tipo==='entrega'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const recolTotal  = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
+  const repEntrega  = domTotal + recolTotal;
+  const gastosTotal = gastos.reduce((s,g)=>s+g.monto,0);
+  const total       = localTotal + domTotal + recolTotal;
+  const cortes      = DBcortes.get();
+  const corteHoy    = cortes.find(c=>c.fecha===new Date().toISOString().split('T')[0]);
+  const agua        = JSON.parse(localStorage.getItem('am_agua_hoy')||'null');
+
+  const statusTxt = corteHoy ? {
+    pendiente: '⏳ Enviado — pendiente de validación',
+    validado:  '✅ Validado por Pedro',
+    rechazado: '❌ Rechazado'
+  }[corteHoy.estado] || '' : '📤 No enviado aún';
+
+  const pedidosRows = pedidos.filter(p=>p.estado==='entregado').map((p,i)=>
+    `<tr style="background:${i%2===0?'#f8fafc':'white'}">
+      <td>${p.fecha||''}</td><td>${p.cliente}</td>
+      <td>${p.tipo==='entrega'?'Entrega':'Recolec.'}</td>
+      <td>${resumenProductos(p.cantidades||p.cantidadesRecogidas)}</td>
+      <td>${p.repartidor||''}</td>
+      <td style="text-align:right;font-weight:bold;color:#059669;">$${p.total}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#999;">Sin pedidos entregados</td></tr>';
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Corte del día — ${hoy}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#1a2535;padding:20px;}
+    .page{max-width:720px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.08);}
+    .header{background:linear-gradient(135deg,#0D2535,#1A4A6B);color:white;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;}
+    .header h1{font-size:22px;font-weight:800;color:#00D4EC;}
+    .header p{font-size:12px;color:#7AAEC8;margin-top:4px;}
+    .status{padding:10px 18px;font-size:13px;font-weight:700;background:${corteHoy?.estado==='validado'?'#d1fae5':corteHoy?.estado==='rechazado'?'#fee2e2':'#fef3c7'};color:${corteHoy?.estado==='validado'?'#059669':corteHoy?.estado==='rechazado'?'#dc2626':'#d97706'};}
+    .body{padding:20px 24px;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+    .stat{border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;}
+    .stat.main{grid-column:1/-1;background:#f0f9ff;border-color:#bae6fd;}
+    .stat-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .stat-val{font-size:24px;font-weight:800;color:#0a7fa0;}
+    .stat.main .stat-val{font-size:32px;color:#059669;}
+    .highlight{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+    .highlight-label{font-size:13px;color:#92400e;font-weight:700;}
+    .highlight-val{font-size:22px;font-weight:800;color:#d97706;}
+    h3{font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{background:#0D2535;color:white;padding:8px 10px;text-align:left;font-size:11px;}
+    td{padding:7px 10px;border-bottom:1px solid #f1f5f9;}
+    .agua-box{background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:16px;}
+    .footer{text-align:center;color:#94a3b8;font-size:11px;padding:16px;border-top:1px solid #f1f5f9;}
+    .print-btn{position:fixed;bottom:20px;right:20px;background:#0a7fa0;color:white;border:none;padding:12px 22px;border-radius:30px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(10,127,160,.3);}
+    @media print{.print-btn{display:none;}body{background:white!important;}.page{box-shadow:none;}}
+  </style></head><body>
+  <div class="page">
+    <div class="header">
+      <div><h1>🌊 AQUAMARINA — Corte del día</h1><p>${hoy}</p></div>
+      <div style="text-align:right;font-size:12px;color:#7AAEC8;">
+        Generado: ${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}<br>
+        Por: ${CU?.name||'Sistema'}
+      </div>
+    </div>
+    <div class="status">${statusTxt}${corteHoy?.notaAdmin?` — Pedro: "${corteHoy.notaAdmin}"`:''}</div>
+    <div class="body">
+      <div class="grid">
+        <div class="stat main"><div class="stat-label">💵 Total del día</div><div class="stat-val">$${total.toLocaleString('es-MX')}</div></div>
+        <div class="stat"><div class="stat-label">🛒 Local (caja)</div><div class="stat-val">$${localTotal.toLocaleString('es-MX')}</div></div>
+        <div class="stat"><div class="stat-label">🛵 Domicilios</div><div class="stat-val">$${domTotal.toLocaleString('es-MX')}</div></div>
+        <div class="stat"><div class="stat-label">🔄 Recolecciones</div><div class="stat-val">$${recolTotal.toLocaleString('es-MX')}</div></div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-label">💰 Repartidor debe entregar:</div>
+        <div class="highlight-val">$${repEntrega.toLocaleString('es-MX')}</div>
+      </div>
+      ${gastos.length>0?`<h3>🧾 Gastos del día</h3><table><tr><th>Concepto</th><th>Registrado por</th><th style="text-align:right;">Monto</th></tr>${gastos.map((g,i)=>`<tr style="background:${i%2?'white':'#f8fafc'}"><td>${g.concepto}</td><td>${g.creadoPor||''}</td><td style="text-align:right;color:#dc2626;">-$${g.monto}</td></tr>`).join('')}</table>`:''}
+      ${agua?`<div class="agua-box"><h3 style="margin:0 0 8px;">💧 Corte de agua</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+          <div><div style="font-size:11px;color:#64748b;">Consumido</div><div style="font-size:18px;font-weight:700;color:#0a7fa0;">${agua.consumido}L</div></div>
+          <div><div style="font-size:11px;color:#64748b;">Vendido</div><div style="font-size:18px;font-weight:700;color:#059669;">${agua.vendido}L</div></div>
+          <div><div style="font-size:11px;color:#64748b;">Diferencia</div><div style="font-size:18px;font-weight:700;color:${Math.abs(agua.diferencia)>50?'#dc2626':Math.abs(agua.diferencia)>10?'#d97706':'#059669'}">${agua.diferencia>0?'+':''}${agua.diferencia}L</div></div>
+        </div></div>`:''}
+      <h3>📋 Pedidos entregados (${pedidos.filter(p=>p.estado==='entregado').length})</h3>
+      <table><tr><th>Hora</th><th>Cliente</th><th>Tipo</th><th>Productos</th><th>Repartidor</th><th style="text-align:right;">Total</th></tr>${pedidosRows}</table>
+      <div class="footer">🌊 AquaMarina App v1.0 · Desarrollado por Victor Montalvo · © 2026</div>
+    </div>
+  </div>
+  <button class="print-btn" onclick="window.print()">🖨️ Guardar PDF</button>
+  <script>setTimeout(()=>window.print(),600);<\/script>
+  </body></html>`;
+
+  const w = window.open('','_blank');
+  if(w){ w.document.write(html); w.document.close(); }
+  else toast('Permite ventanas emergentes para el PDF');
+}
+
 // ─── CORTE DE CAJA — VALIDACIÓN ──────────────────────────
 const DBcortes = {
   get()  { return JSON.parse(localStorage.getItem('am_cortes')||'[]'); },
@@ -2027,9 +2144,14 @@ const DBcortes = {
 function enviarCorteValidacion() {
   const hoy    = new Date().toISOString().split('T')[0];
   const cortes = DBcortes.get();
-  if(cortes.find(c=>c.fecha===hoy&&c.estado!=='rechazado')) {
-    toast('Ya enviaste el corte de hoy — espera que Pedro lo valide'); return;
+
+  // Si ya hay un corte validado hoy — confirmar antes de enviar otro
+  const corteHoy = cortes.find(c=>c.fecha===hoy&&c.estado==='validado');
+  if(corteHoy) {
+    // Permitir cortes adicionales — solo avisar
+    toast('⚠️ Ya hay un corte validado hoy — se enviará un corte adicional');
   }
+
   const pedidos  = DB.get();
   const ventas   = DB.getVentas();
   const gastos   = DBgastos ? DBgastos.get() : [];
@@ -2038,8 +2160,16 @@ function enviarCorteValidacion() {
   const recolTotal   = pedidos.filter(p=>p.tipo==='recoleccion'&&p.estado==='entregado').reduce((s,p)=>s+p.total,0);
   const gastosTotal  = gastos.reduce((s,g)=>s+g.monto,0);
   const total        = localTotal + domTotal + recolTotal;
-  const agua         = JSON.parse(localStorage.getItem('am_agua_hoy')||'null');
 
+  // Solo enviar si hay ventas
+  if(total === 0 && pedidos.length === 0) {
+    toast('Sin ventas registradas — no hay corte que enviar'); return;
+  }
+
+  const agua = JSON.parse(localStorage.getItem('am_agua_hoy')||'null');
+
+  // Siempre agregar — se permiten múltiples cortes por día
+  const idxRechazado = cortes.findIndex(c=>c.fecha===hoy&&c.estado==='rechazado');
   const corte = {
     id: genId(),
     fecha: hoy,
@@ -2050,9 +2180,11 @@ function enviarCorteValidacion() {
     agua: agua || null,
     timestamp: Date.now()
   };
-  cortes.push(corte);
+  if(idxRechazado >= 0) cortes[idxRechazado] = corte;
+  else cortes.push(corte);
+
   DBcortes.set(cortes);
-  toast('✓ Corte enviado a Pedro para validación');
+  toast('✓ Corte enviado a Pedro');
   renderCorteStatus();
   refreshAll();
 }
@@ -2060,7 +2192,9 @@ function enviarCorteValidacion() {
 function renderCorteStatus() {
   const hoy    = new Date().toISOString().split('T')[0];
   const cortes = DBcortes.get();
-  const corteHoy = cortes.find(c=>c.fecha===hoy);
+  // Tomar el corte más reciente del día
+  const cortesHoy = cortes.filter(c=>c.fecha===hoy);
+  const corteHoy  = cortesHoy.length > 0 ? cortesHoy[cortesHoy.length-1] : null;
 
   const configs = {
     pendiente:  { bg:'rgba(255,179,0,.12)',  border:'rgba(255,179,0,.3)',  color:'var(--am)',  icon:'⏳', texto:'Enviado — pendiente de validación por Pedro' },
@@ -2097,10 +2231,24 @@ function renderCorteStatus() {
   ['btn-enviar-corte','btn-drawer-enviar-corte'].forEach(id => {
     const btn = document.getElementById(id);
     if(!btn) return;
-    btn.style.display = yaValidado ? 'none' : 'block';
-    btn.textContent = corteHoy?.estado==='rechazado' ? '📤 Volver a enviar corte' : '📤 Enviar corte para validación';
-    btn.disabled = !puedeEnviar;
-    btn.style.opacity = !puedeEnviar ? '0.5' : '1';
+    if(yaValidado) {
+      btn.style.display = 'none';
+    } else if(corteHoy?.estado === 'pendiente') {
+      btn.style.display = 'block';
+      btn.textContent = '⏳ Enviado — pendiente de validación';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+    } else if(corteHoy?.estado === 'rechazado') {
+      btn.style.display = 'block';
+      btn.textContent = '📤 Volver a enviar corte';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    } else {
+      btn.style.display = 'block';
+      btn.textContent = '📤 Enviar corte para validación';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
   });
 }
 
@@ -2190,9 +2338,15 @@ function calcularCorteAgua() {
 }
 
 function guardarCorteAgua() {
-  if(!window._corteAgua) { toast('Ingresa las lecturas del medidor primero'); return; }
+  const ayerVal = parseFloat(document.getElementById('agua-ayer')?.value||0)||0;
+  const hoyVal  = parseFloat(document.getElementById('agua-hoy')?.value||0)||0;
+  if(!ayerVal || !hoyVal) { toast('Ingresa la lectura de ayer y la de hoy'); return; }
+  if(hoyVal <= ayerVal)   { toast('La lectura de hoy debe ser mayor a la de ayer'); return; }
+  // Recalcular al guardar (por si no se llamó calcularCorteAgua antes)
+  calcularCorteAgua();
+  const datos = window._corteAgua || {};
   const hoyStr = new Date().toISOString().split('T')[0];
-  const registro = { ...window._corteAgua, fecha: hoyStr, timestamp: Date.now() };
+  const registro = { ayer: ayerVal, hoy: hoyVal, ...datos, fecha: hoyStr, timestamp: Date.now() };
   localStorage.setItem('am_agua_hoy', JSON.stringify(registro));
 
   // Guardar en historial de agua
